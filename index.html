@@ -26,15 +26,39 @@
     --tag-stay-bg: #fbe1b8;
     --tag-who-bg: #d9f0d1;
     --radius: 14px;
+    --card-shadow: 0 2px 10px rgba(34,53,38,0.06);
+    --card-shadow-hover: 0 12px 28px rgba(34,53,38,0.16);
+  }
+  html[data-theme="dark"]{
+    --bg: #131f19;
+    --bg-soft: #17251d;
+    --surface: #1d3226;
+    --surface-2: #23392b;
+    --border: #33503f;
+    --text: #eaf3ea;
+    --text-dim: #9fb8a8;
+    --accent: #f2a33d;
+    --accent-soft: #4a3a22;
+    --moss: #6fbf7f;
+    --navy: #9dcdf0;
+    --danger: #e0838a;
+    --danger-soft: #4a2226;
+    --tag-duration-bg: #1f3b4d;
+    --tag-stay-bg: #4a3a22;
+    --tag-who-bg: #23392b;
+    --card-shadow: 0 2px 10px rgba(0,0,0,0.25);
+    --card-shadow-hover: 0 14px 32px rgba(0,0,0,0.4);
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
+  html{ scroll-behavior:smooth; }
   body{
     background: var(--bg);
     color: var(--text);
     font-family: 'Inter', sans-serif;
     min-height:100vh;
     line-height:1.5;
+    transition: background .35s ease, color .35s ease;
   }
   ::selection{ background: var(--accent-soft); color:var(--text); }
   body{ background: var(--bg); }
@@ -109,7 +133,46 @@
   .wrap{ max-width:960px; margin:0 auto; padding: 32px 24px 80px; }
 
   /* ---- Notifications ---- */
-  .notif-wrap{ position:fixed; top:18px; right:18px; z-index:1000; }
+  .notif-wrap{ position:fixed; top:18px; right:18px; z-index:1000; display:flex; gap:10px; align-items:flex-start; }
+  .theme-toggle{
+    width:46px; height:46px; border-radius:50%;
+    background: var(--surface); border:1px solid var(--border);
+    font-size:19px; display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 6px 18px rgba(34,53,38,0.18);
+    padding:0; cursor:pointer;
+    transition: transform .15s ease;
+  }
+  .theme-toggle:hover{ transform: rotate(-12deg); }
+
+  @keyframes shimmer{
+    0%{ background-position: -400px 0; }
+    100%{ background-position: 400px 0; }
+  }
+  .skeleton-card{
+    background: var(--surface);
+    border:1px solid var(--border);
+    border-radius: var(--radius);
+    padding:18px 20px;
+    display:grid;
+    grid-template-columns: 78px 1fr auto;
+    gap:18px;
+    align-items:center;
+    margin-bottom:12px;
+  }
+  .skeleton-block{
+    border-radius:8px;
+    background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 37%, var(--surface-2) 63%);
+    background-size: 800px 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+  .skeleton-card .sk-date{ height:56px; border-radius:10px; }
+  .skeleton-card .sk-lines{ display:flex; flex-direction:column; gap:8px; }
+  .skeleton-card .sk-title{ height:16px; width:60%; }
+  .skeleton-card .sk-tags{ height:11px; width:40%; }
+  .skeleton-card .sk-sub{ height:11px; width:75%; }
+  .skeleton-card .sk-actions{ display:flex; flex-direction:column; gap:8px; }
+  .skeleton-card .sk-btn{ height:32px; width:88px; border-radius:9px; }
+
   .notif-bell{
     width:46px; height:46px; border-radius:50%;
     background: var(--surface); border:1px solid var(--border);
@@ -180,6 +243,22 @@
     align-items:center;
     justify-content:space-between;
     margin-bottom:22px;
+    position: sticky;
+    top: 0;
+    z-index: 400;
+    padding: 14px 4px;
+    margin-left: -4px;
+    margin-right: -4px;
+    background: var(--bg);
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid transparent;
+    transition: border-color .25s ease, box-shadow .25s ease;
+  }
+  .toolbar.stuck{
+    border-bottom-color: var(--border);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.06);
   }
   .filters{ display:flex; flex-wrap:wrap; gap:8px; }
   select, input[type=text], input[type=date], textarea{
@@ -268,6 +347,31 @@
   }
 
   .list{ display:flex; flex-direction:column; gap:12px; }
+
+  @keyframes cardEnter{
+    from{ opacity:0; transform: translateY(10px); }
+    to{ opacity:1; transform: translateY(0); }
+  }
+  .month-group{ margin-bottom:6px; }
+  .month-group-header{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color: var(--text-dim);
+    margin: 22px 2px 10px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .month-group-header::after{
+    content:'';
+    flex:1;
+    height:1px;
+    background: var(--border);
+  }
+  .month-group:first-child .month-group-header{ margin-top:0; }
+
   .card{
     background: var(--surface);
     border:1px solid var(--border);
@@ -277,6 +381,15 @@
     grid-template-columns: 78px 1fr auto;
     gap:18px;
     align-items:center;
+    box-shadow: var(--card-shadow);
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .35s ease;
+    animation: cardEnter .4s ease both;
+  }
+  .card:hover{
+    transform: translateY(-3px);
+    box-shadow: var(--card-shadow-hover);
+    border-color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
   }
   .card.past{ opacity:0.55; }
   .date-block{
@@ -343,6 +456,8 @@
 <body>
 
 <div id="notifWrap" class="notif-wrap">
+  <button id="themeToggle" class="theme-toggle" title="Εναλλαγή θέματος" type="button">🌙</button>
+  <div style="position:relative;">
   <button id="notifBell" class="notif-bell" title="Ειδοποιήσεις" type="button">
     🔔
     <span id="notifBadge" class="notif-badge">0</span>
@@ -352,6 +467,7 @@
     <div id="notifList" class="notif-list">
       <div class="notif-empty">Καμία νέα ειδοποίηση</div>
     </div>
+  </div>
   </div>
 </div>
 
@@ -502,6 +618,23 @@ function apiPost(payload){
   }).then(r => r.json());
 }
 
+function skeletonHtml(){
+  const one = `
+    <div class="skeleton-card">
+      <div class="skeleton-block sk-date"></div>
+      <div class="sk-lines">
+        <div class="skeleton-block sk-title"></div>
+        <div class="skeleton-block sk-tags"></div>
+        <div class="skeleton-block sk-sub"></div>
+      </div>
+      <div class="sk-actions">
+        <div class="skeleton-block sk-btn"></div>
+        <div class="skeleton-block sk-btn"></div>
+      </div>
+    </div>`;
+  return one.repeat(3);
+}
+
 async function load(){
   if (!API_URL || API_URL.indexOf('PASTE_YOUR') === 0){
     listArea.innerHTML = '';
@@ -509,6 +642,7 @@ async function load(){
     return;
   }
   clearStatus();
+  listArea.innerHTML = skeletonHtml();
   try{
     const data = await apiGet();
     if (data.error) { showStatus('Σφάλμα: ' + data.error); return; }
@@ -518,6 +652,7 @@ async function load(){
     render();
   } catch(err){
     showStatus('Δεν ήταν δυνατή η σύνδεση με το Google Sheet. Ελέγξτε ότι το Apps Script έχει γίνει deploy με πρόσβαση "Anyone".');
+    listArea.innerHTML = '';
   }
 }
 
@@ -570,7 +705,27 @@ function render(){
 
   const today = new Date(); today.setHours(0,0,0,0);
 
-  listArea.innerHTML = '<div class="list">' + rows.map(r => cardHtml(r, today)).join('') + '</div>';
+  // Ομαδοποίηση ανά μήνα/έτος (τα χωρίς ημερομηνία πάνε σε ξεχωριστή ομάδα)
+  const groups = [];
+  const groupIndex = {};
+  rows.forEach(r => {
+    const d = r['Ημερομηνία'];
+    const dt = d ? new Date(d) : null;
+    const key = (dt && !isNaN(dt)) ? (dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0')) : 'χωρίς-ημερομηνία';
+    if (!(key in groupIndex)){
+      groupIndex[key] = groups.length;
+      const label = (dt && !isNaN(dt)) ? (MONTHS_EL[dt.getMonth()] + ' ' + dt.getFullYear()) : 'Χωρίς ημερομηνία';
+      groups.push({ key, label, items: [] });
+    }
+    groups[groupIndex[key]].items.push(r);
+  });
+
+  listArea.innerHTML = groups.map(g => `
+    <div class="month-group">
+      <div class="month-group-header">${escapeHtml(g.label)}</div>
+      <div class="list">${g.items.map(r => cardHtml(r, today)).join('')}</div>
+    </div>
+  `).join('');
 
   listArea.querySelectorAll('[data-go]').forEach(btn => {
     btn.addEventListener('click', () => onInterest(btn.dataset.go));
@@ -795,6 +950,30 @@ document.addEventListener('click', (e) => {
 
 setInterval(pollForUpdates, 45000);
 
+// ---- Dark mode toggle ----
+const themeToggle = document.getElementById('themeToggle');
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme', theme);
+  themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+}
+let currentTheme = 'light';
+applyTheme(currentTheme);
+themeToggle.addEventListener('click', () => {
+  currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  applyTheme(currentTheme);
+});
+
+// ---- Sticky toolbar shadow όταν κάνουμε scroll ----
+const toolbarEl = document.querySelector('.toolbar');
+if (toolbarEl){
+  const sentinel = document.createElement('div');
+  sentinel.style.height = '1px';
+  toolbarEl.parentNode.insertBefore(sentinel, toolbarEl);
+  new IntersectionObserver(
+    ([entry]) => toolbarEl.classList.toggle('stuck', !entry.isIntersecting),
+    { threshold: 0 }
+  ).observe(sentinel);
+}
 
 load();
 </script>
