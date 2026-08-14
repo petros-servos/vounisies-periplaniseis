@@ -108,6 +108,71 @@
 
   .wrap{ max-width:960px; margin:0 auto; padding: 32px 24px 80px; }
 
+  /* ---- Notifications ---- */
+  .notif-wrap{ position:fixed; top:18px; right:18px; z-index:1000; }
+  .notif-bell{
+    width:46px; height:46px; border-radius:50%;
+    background: var(--surface); border:1px solid var(--border);
+    font-size:20px; display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 6px 18px rgba(34,53,38,0.18);
+    position:relative; padding:0;
+  }
+  .notif-badge{
+    position:absolute; top:-4px; right:-4px;
+    background: var(--danger); color:#fff;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px; font-weight:700;
+    min-width:18px; height:18px; border-radius:9px;
+    display:flex; align-items:center; justify-content:center;
+    padding:0 4px;
+    display:none;
+  }
+  .notif-badge.show{ display:flex; }
+  .notif-panel{
+    display:none;
+    position:absolute; top:56px; right:0;
+    width:300px; max-height:360px; overflow-y:auto;
+    background: var(--surface); border:1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 10px 30px rgba(34,53,38,0.22);
+  }
+  .notif-panel.open{ display:block; }
+  .notif-panel-header{
+    font-family:'Fraunces', serif; font-weight:600; font-size:15px;
+    padding:14px 16px; border-bottom:1px solid var(--border);
+  }
+  .notif-list{ padding:6px; }
+  .notif-empty{ padding:16px; text-align:center; color: var(--text-dim); font-size:13px; }
+  .notif-item{
+    display:block; padding:10px 10px; border-radius:9px;
+    text-decoration:none; color: var(--text);
+    font-size:13px; line-height:1.4;
+  }
+  .notif-item:hover{ background: var(--surface-2); }
+  .notif-item b{ color: var(--navy); display:block; font-size:13.5px; margin-bottom:2px; }
+
+  /* ---- Name modal ---- */
+  .modal-overlay{
+    display:none; position:fixed; inset:0; z-index:1100;
+    background: rgba(20,30,24,0.55);
+    align-items:center; justify-content:center;
+  }
+  .modal-overlay.show{ display:flex; }
+  .modal-box{
+    background: var(--surface); border-radius: var(--radius);
+    padding:24px; width:90%; max-width:340px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+  }
+  .modal-box h3{ font-family:'Fraunces', serif; margin:0 0 14px; font-size:19px; }
+  .modal-box select, .modal-box input{ width:100%; margin-bottom:10px; }
+  .modal-actions{ display:flex; gap:10px; margin-top:6px; }
+
+  @keyframes cardHighlight{
+    0%{ box-shadow: 0 0 0 3px var(--accent); }
+    100%{ box-shadow: none; }
+  }
+  .card.just-added{ animation: cardHighlight 2.2s ease-out; }
+
   .toolbar{
     display:flex;
     flex-wrap:wrap;
@@ -277,6 +342,39 @@
 </head>
 <body>
 
+<div id="notifWrap" class="notif-wrap">
+  <button id="notifBell" class="notif-bell" title="Ειδοποιήσεις" type="button">
+    🔔
+    <span id="notifBadge" class="notif-badge">0</span>
+  </button>
+  <div id="notifPanel" class="notif-panel">
+    <div class="notif-panel-header">Νέες εξορμήσεις</div>
+    <div id="notifList" class="notif-list">
+      <div class="notif-empty">Καμία νέα ειδοποίηση</div>
+    </div>
+  </div>
+</div>
+
+<div id="nameModalOverlay" class="modal-overlay">
+  <div class="modal-box">
+    <h3>Πώς λέγεστε;</h3>
+    <select id="nameModalSelect">
+      <option value="">-- Επιλέξτε --</option>
+      <option value="Πέτρος">Πέτρος</option>
+      <option value="Κυριάκος">Κυριάκος</option>
+      <option value="Ελένη">Ελένη</option>
+      <option value="Άρτεμις - Ντιάνα">Άρτεμις - Ντιάνα</option>
+      <option value="Σοφία">Σοφία</option>
+      <option value="__other__">Άλλο...</option>
+    </select>
+    <input type="text" id="nameModalOther" placeholder="Το όνομά σας" style="display:none;">
+    <div class="modal-actions">
+      <button type="button" class="btn-accent" id="nameModalConfirm">Συνέχεια</button>
+      <button type="button" class="btn-ghost" id="nameModalCancel">Άκυρο</button>
+    </div>
+  </div>
+</div>
+
 <div class="contour-bg">
   <svg viewBox="0 0 960 220" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M0 180 Q 120 100 240 150 T 480 130 T 720 160 T 960 110" stroke="#3f7d4c" stroke-width="1.4" fill="none"/>
@@ -341,8 +439,16 @@
         </select>
       </div>
       <div>
-        <label for="fWho">Όνομά σας</label>
-        <input type="text" id="fWho" placeholder="π.χ. Πέτρος" required>
+        <label for="fWhoSelect">Όνομά σας</label>
+        <select id="fWhoSelect">
+          <option value="Πέτρος">Πέτρος</option>
+          <option value="Κυριάκος">Κυριάκος</option>
+          <option value="Ελένη">Ελένη</option>
+          <option value="Άρτεμις - Ντιάνα">Άρτεμις - Ντιάνα</option>
+          <option value="Σοφία">Σοφία</option>
+          <option value="__other__">Άλλο...</option>
+        </select>
+        <input type="text" id="fWhoOther" placeholder="Το όνομά σας" style="display:none; margin-top:6px;">
       </div>
       <div class="full">
         <label for="fComment">Βουνό / περιγραφή</label>
@@ -407,6 +513,7 @@ async function load(){
     const data = await apiGet();
     if (data.error) { showStatus('Σφάλμα: ' + data.error); return; }
     ROWS = data;
+    syncKnownIds();
     buildFilterOptions();
     render();
   } catch(err){
@@ -485,7 +592,7 @@ function cardHtml(r, today){
   const iAmIn = MY_NAME && interested.includes(MY_NAME);
 
   return `
-    <div class="card ${isPast ? 'past' : ''}">
+    <div class="card ${isPast ? 'past' : ''}" id="exp-${r.ID}">
       <div class="date-block">
         <div class="day">${day}</div>
         <div class="mon">${mon}</div>
@@ -512,11 +619,48 @@ function escapeHtml(s){
 }
 function escapeAttr(s){ return escapeHtml(s); }
 
+function askName(){
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('nameModalOverlay');
+    const select = document.getElementById('nameModalSelect');
+    const other = document.getElementById('nameModalOther');
+    select.value = '';
+    other.value = '';
+    other.style.display = 'none';
+    overlay.classList.add('show');
+
+    function cleanup(){
+      overlay.classList.remove('show');
+      select.removeEventListener('change', onChange);
+      confirmBtn.removeEventListener('click', onConfirm);
+      cancelBtn.removeEventListener('click', onCancel);
+    }
+    function onChange(){
+      other.style.display = select.value === '__other__' ? 'block' : 'none';
+    }
+    function onConfirm(){
+      const name = select.value === '__other__' ? other.value.trim() : select.value;
+      if (!name) return;
+      cleanup();
+      resolve(name);
+    }
+    function onCancel(){
+      cleanup();
+      resolve(null);
+    }
+    const confirmBtn = document.getElementById('nameModalConfirm');
+    const cancelBtn = document.getElementById('nameModalCancel');
+    select.addEventListener('change', onChange);
+    confirmBtn.addEventListener('click', onConfirm);
+    cancelBtn.addEventListener('click', onCancel);
+  });
+}
+
 async function onInterest(id){
   if (!MY_NAME){
-    const name = prompt('Πώς λέγεστε; (θα εμφανίζεται στη λίστα ενδιαφερομένων)');
+    const name = await askName();
     if (!name) return;
-    MY_NAME = name.trim();
+    MY_NAME = name;
   }
   const res = await apiPost({ action:'interest', id, name: MY_NAME });
   if (res.ok) load(); else showStatus('Κάτι πήγε στραβά.');
@@ -534,8 +678,15 @@ document.getElementById('btnShowForm').addEventListener('click', () => addForm.c
 document.getElementById('btnCancel').addEventListener('click', () => addForm.classList.remove('open'));
 document.getElementById('btnRefresh').addEventListener('click', load);
 
+const fWhoSelect = document.getElementById('fWhoSelect');
+const fWhoOther = document.getElementById('fWhoOther');
+fWhoSelect.addEventListener('change', () => {
+  fWhoOther.style.display = fWhoSelect.value === '__other__' ? 'block' : 'none';
+});
+
 addForm.addEventListener('submit', async (e) => {
   e.preventDefault();
+  const chosenName = fWhoSelect.value === '__other__' ? fWhoOther.value.trim() : fWhoSelect.value;
   const payload = {
     action: 'add',
     link: document.getElementById('fLink').value.trim(),
@@ -543,12 +694,14 @@ addForm.addEventListener('submit', async (e) => {
     duration: document.getElementById('fDur').value,
     stay: document.getElementById('fStayIn').value,
     comment: document.getElementById('fComment').value.trim(),
-    name: document.getElementById('fWho').value.trim(),
+    name: chosenName,
   };
+  if (!payload.name){ showStatus('Επιλέξτε ή γράψτε ένα όνομα.'); return; }
   MY_NAME = payload.name;
   const res = await apiPost(payload);
   if (res.ok){
     addForm.reset();
+    fWhoOther.style.display = 'none';
     addForm.classList.remove('open');
     load();
   } else {
@@ -557,6 +710,84 @@ addForm.addEventListener('submit', async (e) => {
 });
 
 [fMonth, fDuration, fStay].forEach(sel => sel.addEventListener('change', render));
+
+// ---- Ειδοποιήσεις νέων εξορμήσεων ----
+let KNOWN_IDS = null; // null = δεν έχει γίνει ακόμα αρχικό sync
+let NOTIFS = [];
+
+function syncKnownIds(){
+  KNOWN_IDS = new Set(ROWS.map(r => r.ID));
+}
+
+function renderNotifs(){
+  const badge = document.getElementById('notifBadge');
+  const list = document.getElementById('notifList');
+  if (NOTIFS.length === 0){
+    badge.classList.remove('show');
+    list.innerHTML = '<div class="notif-empty">Καμία νέα ειδοποίηση</div>';
+    return;
+  }
+  badge.textContent = NOTIFS.length;
+  badge.classList.add('show');
+  list.innerHTML = NOTIFS.map(n => `
+    <a href="#exp-${n.id}" class="notif-item" data-notif-id="${n.id}">
+      <b>${escapeHtml(n.title)}</b>${escapeHtml(n.who ? ('πρόταση: ' + n.who) : '')}
+    </a>
+  `).join('');
+  list.querySelectorAll('.notif-item').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      goToNotif(el.dataset.notifId);
+    });
+  });
+}
+
+function goToNotif(id){
+  NOTIFS = NOTIFS.filter(n => n.id !== id);
+  renderNotifs();
+  document.getElementById('notifPanel').classList.remove('open');
+  const card = document.getElementById('exp-' + id);
+  if (card){
+    card.scrollIntoView({ behavior:'smooth', block:'center' });
+    card.classList.add('just-added');
+    setTimeout(() => card.classList.remove('just-added'), 2300);
+  }
+}
+
+async function pollForUpdates(){
+  if (!API_URL || API_URL.indexOf('PASTE_YOUR') === 0) return;
+  try{
+    const data = await apiGet();
+    if (data.error || !Array.isArray(data)) return;
+    if (KNOWN_IDS === null){
+      ROWS = data;
+      syncKnownIds();
+      return;
+    }
+    const fresh = data.filter(r => !KNOWN_IDS.has(r.ID));
+    if (fresh.length){
+      fresh.forEach(r => {
+        NOTIFS.unshift({ id: r.ID, title: r['Σχόλια'] || 'Νέα εξόρμηση', who: r['Όνομα'] || '' });
+      });
+      ROWS = data;
+      syncKnownIds();
+      buildFilterOptions();
+      render();
+      renderNotifs();
+    }
+  } catch(err){ /* σιωπηλή αποτυχία στο background poll */ }
+}
+
+document.getElementById('notifBell').addEventListener('click', () => {
+  document.getElementById('notifPanel').classList.toggle('open');
+});
+document.addEventListener('click', (e) => {
+  const wrap = document.getElementById('notifWrap');
+  if (!wrap.contains(e.target)) document.getElementById('notifPanel').classList.remove('open');
+});
+
+setInterval(pollForUpdates, 45000);
+
 
 load();
 </script>
