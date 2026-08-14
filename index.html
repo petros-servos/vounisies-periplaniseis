@@ -130,6 +130,17 @@
     margin:0;
   }
 
+  .live-clock{
+    text-align:center;
+    font-family:'JetBrains Mono', monospace;
+    font-size:12.5px;
+    letter-spacing:0.02em;
+    color: var(--text-dim);
+    background: var(--surface-2);
+    border-bottom:1px solid var(--border);
+    padding:8px 12px;
+  }
+
   .wrap{ max-width:960px; margin:0 auto; padding: 32px 24px 80px; }
 
   /* ---- Notifications ---- */
@@ -477,6 +488,8 @@
 </head>
 <body>
 
+<div id="liveClock" class="live-clock"></div>
+
 <div id="notifWrap" class="notif-wrap">
   <button id="themeToggle" class="theme-toggle" title="Εναλλαγή θέματος" type="button">🌙</button>
   <div style="position:relative;">
@@ -613,6 +626,27 @@ const API_URL = "https://script.google.com/macros/s/AKfycbwFP8oAkxwUEc40IwYeHu8V
 /* ==================================================================================== */
 
 const MONTHS_EL = ['Ιαν','Φεβ','Μάρ','Απρ','Μάι','Ιούν','Ιούλ','Αύγ','Σεπ','Οκτ','Νοέ','Δεκ'];
+
+const DAYS_EL = ['Κυριακή','Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο'];
+const MONTHS_GEN_EL = ['Ιανουαρίου','Φεβρουαρίου','Μαρτίου','Απριλίου','Μαΐου','Ιουνίου','Ιουλίου','Αυγούστου','Σεπτεμβρίου','Οκτωβρίου','Νοεμβρίου','Δεκεμβρίου'];
+
+function updateLiveClock(){
+  const el = document.getElementById('liveClock');
+  if (!el) return;
+  const now = new Date();
+  const dayName = DAYS_EL[now.getDay()];
+  const date = now.getDate();
+  const month = MONTHS_GEN_EL[now.getMonth()];
+  const year = now.getFullYear();
+  let hours = now.getHours();
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'μμ' : 'πμ';
+  hours = hours % 12;
+  if (hours === 0) hours = 12;
+  el.textContent = `${dayName} ${date} ${month} ${year} — ώρα ${hours}:${minutes} ${ampm}`;
+}
+updateLiveClock();
+setInterval(updateLiveClock, 15000);
 let ROWS = [];
 let MY_NAME = '';
 
