@@ -392,6 +392,28 @@
     border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
   }
   .card.past{ opacity:0.55; }
+  .card.urgent{
+    border-color: var(--danger);
+    background: var(--danger-soft);
+    background: color-mix(in srgb, var(--danger) 7%, var(--surface));
+  }
+  .card.urgent-today{
+    border-width:2px;
+    box-shadow: 0 0 0 1px var(--danger), var(--card-shadow);
+  }
+  .card.urgent .date-block{ background: var(--danger); }
+  .card.urgent .date-block .day{ color:#ffffff; }
+  .card.urgent .date-block .mon{ color:#ffe3e3; }
+  .tag.urgent-tag{
+    background: var(--danger);
+    color:#ffffff;
+    font-weight:700;
+    animation: urgentPulse 1.8s ease-in-out infinite;
+  }
+  @keyframes urgentPulse{
+    0%, 100%{ opacity:1; }
+    50%{ opacity:0.65; }
+  }
   .date-block{
     text-align:center;
     font-family:'JetBrains Mono', monospace;
@@ -737,7 +759,11 @@ function render(){
 
 function cardHtml(r, today){
   const dt = r['Ημερομηνία'] ? new Date(r['Ημερομηνία']) : null;
+  if (dt) dt.setHours(0,0,0,0);
   const isPast = dt && dt < today;
+  const daysUntil = dt ? Math.round((dt - today) / 86400000) : null;
+  const isToday = daysUntil === 0;
+  const isTomorrow = daysUntil === 1;
   const day = dt ? dt.getDate() : '—';
   const mon = dt ? MONTHS_EL[dt.getMonth()] : '';
   const link = r['Πρόταση / Link Πεζοπορίας'] || '#';
@@ -745,9 +771,13 @@ function cardHtml(r, today){
   const who = r['Όνομα'] || '';
   const interested = (r['Ενδιαφερόμενοι'] || '').split(',').map(s=>s.trim()).filter(Boolean);
   const iAmIn = MY_NAME && interested.includes(MY_NAME);
+  const urgentClass = isToday ? 'urgent urgent-today' : (isTomorrow ? 'urgent urgent-tomorrow' : '');
+  const urgentBadge = isToday
+    ? '<span class="tag urgent-tag">🔴 Σήμερα!</span>'
+    : (isTomorrow ? '<span class="tag urgent-tag">🔴 Αύριο</span>' : '');
 
   return `
-    <div class="card ${isPast ? 'past' : ''}" id="exp-${r.ID}">
+    <div class="card ${isPast ? 'past' : ''} ${urgentClass}" id="exp-${r.ID}">
       <div class="date-block">
         <div class="day">${day}</div>
         <div class="mon">${mon}</div>
@@ -755,6 +785,7 @@ function cardHtml(r, today){
       <div class="card-main">
         <p class="title"><a href="${escapeAttr(link)}" target="_blank" rel="noopener">${escapeHtml(title)}</a></p>
         <div class="meta">
+          ${urgentBadge}
           ${r['Διάρκεια'] ? `<span class="tag duration">${escapeHtml(r['Διάρκεια'])}</span>` : ''}
           ${r['Διαμονή'] ? `<span class="tag stay">${escapeHtml(r['Διαμονή'])}</span>` : ''}
           ${who ? `<span class="tag who">πρόταση: ${escapeHtml(who)}</span>` : ''}
