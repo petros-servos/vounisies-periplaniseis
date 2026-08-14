@@ -698,12 +698,19 @@ addForm.addEventListener('submit', async (e) => {
   };
   if (!payload.name){ showStatus('Επιλέξτε ή γράψτε ένα όνομα.'); return; }
   MY_NAME = payload.name;
+  const idsBefore = KNOWN_IDS ? new Set(KNOWN_IDS) : new Set(ROWS.map(r => r.ID));
   const res = await apiPost(payload);
   if (res.ok){
     addForm.reset();
     fWhoOther.style.display = 'none';
     addForm.classList.remove('open');
-    load();
+    await load();
+    // Ειδοποίηση και για τη δική μας προσθήκη, ώστε να επιβεβαιώνεται ότι όλα δουλεύουν
+    const justAdded = ROWS.filter(r => !idsBefore.has(r.ID));
+    justAdded.forEach(r => {
+      NOTIFS.unshift({ id: r.ID, title: r['Σχόλια'] || 'Νέα εξόρμηση', who: r['Όνομα'] || '' });
+    });
+    if (justAdded.length) renderNotifs();
   } else {
     showStatus('Δεν ήταν δυνατή η προσθήκη.');
   }
