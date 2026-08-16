@@ -518,6 +518,9 @@
     text-transform:uppercase;
     letter-spacing:0.14em;
   }
+  .date-block.range .day{ font-size:19px; letter-spacing:0; }
+  .date-block.compact .day{ font-size:12.5px; letter-spacing:0; }
+  .date-block.compact .mon{ display:none; }
 
   .card-main .title{
     font-family:Calibri, Carlito, sans-serif;
@@ -645,6 +648,7 @@
             <option>Τριήμερο</option>
             <option>Πολυήμερο</option>
           </select>
+          <input type="number" id="fDays" min="4" value="4" placeholder="Πόσες ημέρες;" style="display:none; margin-top:6px;">
         </div>
         <div>
           <label for="fStayIn">Διαμονή</label>
@@ -701,6 +705,7 @@
             <option>Τριήμερο</option>
             <option>Πολυήμερο</option>
           </select>
+          <input type="number" id="eDays" min="4" value="4" placeholder="Πόσες ημέρες;" style="display:none; margin-top:6px;">
         </div>
         <div>
           <label for="eStayIn">Διαμονή</label>
@@ -989,6 +994,30 @@ function attachCardTapEffects(){
   });
 }
 
+function daysForRow(r){
+  const n = parseInt(r['Ημέρες'], 10);
+  if (n && n > 0) return n;
+  const map = { 'Ημερήσιο':1, 'Διήμερο':2, 'Τριήμερο':3 };
+  return map[r['Διάρκεια']] || 1;
+}
+
+function dateBlockParts(dt, days){
+  if (!dt) return { day:'—', mon:'', small:false, range:false };
+  if (!days || days <= 1) return { day: dt.getDate(), mon: MONTHS_EL[dt.getMonth()], small:false, range:false };
+  const end = new Date(dt);
+  end.setDate(end.getDate() + (days - 1));
+  if (dt.getMonth() === end.getMonth() && dt.getFullYear() === end.getFullYear()){
+    return { day: `${dt.getDate()}-${end.getDate()}`, mon: MONTHS_EL[dt.getMonth()], small:false, range:true };
+  }
+  // Η εξόρμηση ξεκινάει σε έναν μήνα και τελειώνει σε άλλον
+  return {
+    day: `${dt.getDate()}/${dt.getMonth()+1}–${end.getDate()}/${end.getMonth()+1}`,
+    mon: '',
+    small: true,
+    range: true
+  };
+}
+
 function cardHtml(r, today){
   const dt = r['Ημερομηνία'] ? new Date(r['Ημερομηνία']) : null;
   if (dt) dt.setHours(0,0,0,0);
@@ -997,8 +1026,8 @@ function cardHtml(r, today){
   const isToday = daysUntil === 0;
   const isTomorrow = daysUntil === 1;
   const isUrgentWeek = daysUntil !== null && daysUntil >= 0 && daysUntil <= 7;
-  const day = dt ? dt.getDate() : '—';
-  const mon = dt ? MONTHS_EL[dt.getMonth()] : '';
+  const tripDays = daysForRow(r);
+  const dateParts = dateBlockParts(dt, tripDays);
   const link = r['Πρόταση / Link Πεζοπορίας'] || '#';
   const title = r['Σχόλια'] || 'Εξόρμηση';
   const who = r['Όνομα'] || '';
@@ -1014,9 +1043,9 @@ function cardHtml(r, today){
 
   return `
     <div class="card ${isPast ? 'past' : ''} ${urgentClass}" id="exp-${r.ID}">
-      <div class="date-block">
-        <div class="day">${day}</div>
-        <div class="mon">${mon}</div>
+      <div class="date-block ${dateParts.small ? 'compact' : ''} ${dateParts.range ? 'range' : ''}">
+        <div class="day">${dateParts.day}</div>
+        <div class="mon">${dateParts.mon}</div>
       </div>
       <div class="card-main">
         <p class="title"><a href="${escapeAttr(link)}" target="_blank" rel="noopener">${escapeHtml(title)}</a></p>
@@ -1112,10 +1141,26 @@ const editModalOverlay = document.getElementById('editModalOverlay');
 const editForm = document.getElementById('editForm');
 const eWhoSelect = document.getElementById('eWhoSelect');
 const eWhoOther = document.getElementById('eWhoOther');
+const eDur = document.getElementById('eDur');
+const eDays = document.getElementById('eDays');
 
 eWhoSelect.addEventListener('change', () => {
   eWhoOther.style.display = eWhoSelect.value === '__other__' ? 'block' : 'none';
 });
+eDur.addEventListener('change', () => {
+  eDays.style.display = eDur.value === 'Πολυήμερο' ? 'block' : 'none';
+});
+
+// Σταθερός αριθμός ημερών ανά τύπο διάρκειας. Για "Πολυήμερο" ο αριθμός
+// έρχεται από το ξεχωριστό πεδίο "Πόσες ημέρες".
+const DURATION_DAYS = { 'Ημερήσιο': 1, 'Διήμερο': 2, 'Τριήμερο': 3 };
+function resolveDaysFrom(durationValue, daysInputEl){
+  if (durationValue === 'Πολυήμερο'){
+    const n = parseInt(daysInputEl.value, 10);
+    return (n && n >= 4) ? n : 4;
+  }
+  return DURATION_DAYS[durationValue] || 1;
+}
 
 function openEditModal(id){
   const r = ROWS.find(row => row.ID === id);
@@ -1123,9 +1168,16 @@ function openEditModal(id){
   document.getElementById('eId').value = r.ID;
   document.getElementById('eLink').value = r['Πρόταση / Link Πεζοπορίας'] || '';
   document.getElementById('eDate').value = r['Ημερομηνία'] || '';
-  document.getElementById('eDur').value = r['Διάρκεια'] || 'Ημερήσιο';
+  eDur.value = r['Διάρκεια'] || 'Ημερήσιο';
   document.getElementById('eStayIn').value = r['Διαμονή'] || '';
   document.getElementById('eComment').value = r['Σχόλια'] || '';
+
+  if (eDur.value === 'Πολυήμερο'){
+    eDays.style.display = 'block';
+    eDays.value = r['Ημέρες'] && parseInt(r['Ημέρες'],10) >= 4 ? r['Ημέρες'] : 4;
+  } else {
+    eDays.style.display = 'none';
+  }
 
   const knownNames = ['Πέτρος','Κυριάκος','Ελένη','Άρτεμις - Ντιάνα','Σοφία'];
   const currentWho = r['Όνομα'] || '';
@@ -1153,7 +1205,8 @@ editForm.addEventListener('submit', async (e) => {
     id: document.getElementById('eId').value,
     link: document.getElementById('eLink').value.trim(),
     date: document.getElementById('eDate').value,
-    duration: document.getElementById('eDur').value,
+    duration: eDur.value,
+    days: resolveDaysFrom(eDur.value, eDays),
     stay: document.getElementById('eStayIn').value,
     comment: document.getElementById('eComment').value.trim(),
     name: chosenName,
@@ -1183,8 +1236,13 @@ document.getElementById('btnRefresh').addEventListener('click', () => {
 
 const fWhoSelect = document.getElementById('fWhoSelect');
 const fWhoOther = document.getElementById('fWhoOther');
+const fDur = document.getElementById('fDur');
+const fDays = document.getElementById('fDays');
 fWhoSelect.addEventListener('change', () => {
   fWhoOther.style.display = fWhoSelect.value === '__other__' ? 'block' : 'none';
+});
+fDur.addEventListener('change', () => {
+  fDays.style.display = fDur.value === 'Πολυήμερο' ? 'block' : 'none';
 });
 
 addForm.addEventListener('submit', async (e) => {
@@ -1194,7 +1252,8 @@ addForm.addEventListener('submit', async (e) => {
     action: 'add',
     link: document.getElementById('fLink').value.trim(),
     date: document.getElementById('fDate').value,
-    duration: document.getElementById('fDur').value,
+    duration: fDur.value,
+    days: resolveDaysFrom(fDur.value, fDays),
     stay: document.getElementById('fStayIn').value,
     comment: document.getElementById('fComment').value.trim(),
     name: chosenName,
@@ -1206,6 +1265,7 @@ addForm.addEventListener('submit', async (e) => {
   if (res.ok){
     addForm.reset();
     fWhoOther.style.display = 'none';
+    fDays.style.display = 'none';
     addModalOverlay.classList.remove('show');
     await load();
     // Ειδοποίηση και για τη δική μας προσθήκη, ώστε να επιβεβαιώνεται ότι όλα δουλεύουν
