@@ -9,13 +9,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400;1,700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg: #d3e8c8;
-    --bg-soft: #e2f0d8;
+    --bg: #e9ecf5;
+    --bg-soft: #dfe4f0;
     --surface: #ffffff;
-    --surface-2: #e7f3dc;
-    --border: #b9d6ab;
-    --text: #223526;
-    --text-dim: #5f7a63;
+    --surface-2: #eef1f9;
+    --border: #d2d8e8;
+    --text: #1c2333;
+    --text-dim: #626b85;
     --accent: #f2971f;
     --accent-soft: #fbe1b8;
     --moss: #3f7d4c;
@@ -25,18 +25,19 @@
     --tag-duration-bg: #d6e9f7;
     --tag-stay-bg: #fbe1b8;
     --tag-who-bg: #d9f0d1;
+    --hover-glow: #b9a6f0;
     --radius: 14px;
-    --card-shadow: 0 2px 10px rgba(34,53,38,0.06);
-    --card-shadow-hover: 0 12px 28px rgba(34,53,38,0.16);
+    --card-shadow: 0 2px 10px rgba(28,35,51,0.07);
+    --card-shadow-hover: 0 14px 30px rgba(28,35,51,0.16);
   }
   html[data-theme="dark"]{
-    --bg: #131f19;
-    --bg-soft: #17251d;
-    --surface: #1d3226;
-    --surface-2: #23392b;
-    --border: #33503f;
-    --text: #eaf3ea;
-    --text-dim: #9fb8a8;
+    --bg: #0e1420;
+    --bg-soft: #131a2a;
+    --surface: #1a2333;
+    --surface-2: #202a3e;
+    --border: #2d3750;
+    --text: #e8ecf8;
+    --text-dim: #929fbe;
     --accent: #f2a33d;
     --accent-soft: #4a3a22;
     --moss: #6fbf7f;
@@ -46,8 +47,9 @@
     --tag-duration-bg: #1f3b4d;
     --tag-stay-bg: #4a3a22;
     --tag-who-bg: #23392b;
-    --card-shadow: 0 2px 10px rgba(0,0,0,0.25);
-    --card-shadow-hover: 0 14px 32px rgba(0,0,0,0.4);
+    --hover-glow: #c9b6ff;
+    --card-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    --card-shadow-hover: 0 16px 34px rgba(0,0,0,0.45);
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -75,13 +77,52 @@
   }
   html[data-theme="dark"] body::before{ opacity:0.25; }
 
+  .bg-icons{
+    position:fixed;
+    inset:0;
+    z-index:-1;
+    pointer-events:none;
+    overflow:hidden;
+  }
+  .bg-icon{
+    position:absolute;
+    fill:none;
+    color: var(--text-dim);
+    stroke: currentColor;
+    stroke-width:1.6;
+    opacity:0.11;
+  }
+  html[data-theme="dark"] .bg-icon{ opacity:0.16; }
+
+  .bi-1{ top:8%;  left:6%;  width:60px; height:60px; animation: driftA 95s ease-in-out infinite; }
+  .bi-2{ top:58%; left:89%; width:46px; height:46px; animation: driftB 118s ease-in-out infinite; }
+  .bi-3{ top:80%; left:12%; width:52px; height:52px; animation: driftC 132s ease-in-out infinite; }
+  .bi-4{ top:16%; left:82%; width:50px; height:50px; animation: driftA 104s ease-in-out infinite reverse; }
+  .bi-5{ top:44%; left:3%;  width:44px; height:44px; animation: driftB 140s ease-in-out infinite; }
+  .bi-6{ top:87%; left:68%; width:38px; height:38px; animation: driftC 98s ease-in-out infinite reverse; }
+  .bi-7{ top:30%; left:47%; width:42px; height:42px; animation: driftA 122s ease-in-out infinite; }
+  .bi-8{ top:5%;  left:56%; width:34px; height:34px; animation: driftB 108s ease-in-out infinite reverse; }
+
+  @keyframes driftA{
+    0%, 100%{ transform: translate(0,0) rotate(0deg); }
+    50%{ transform: translate(34px,-26px) rotate(9deg); }
+  }
+  @keyframes driftB{
+    0%, 100%{ transform: translate(0,0) rotate(0deg); }
+    50%{ transform: translate(-28px,22px) rotate(-7deg); }
+  }
+  @keyframes driftC{
+    0%, 100%{ transform: translate(0,0) rotate(0deg); }
+    50%{ transform: translate(22px,28px) rotate(11deg); }
+  }
+
   a { color: var(--accent); }
 
   .contour-bg{
     position:relative;
     overflow:hidden;
     border-bottom:1px solid var(--border);
-    background: radial-gradient(120% 140% at 20% 0%, #c3ddb4 0%, #d3e8c8 60%);
+    background: radial-gradient(120% 140% at 20% 0%, #dde2f2 0%, #e9ecf5 60%);
   }
   .contour-bg svg{
     position:absolute; inset:0; width:100%; height:100%;
@@ -440,26 +481,20 @@
     position:absolute;
     inset:-1.5px;
     border-radius:calc(var(--radius) + 1.5px);
-    background: linear-gradient(120deg, #ffd9a8, #baf3c6, #b9dcff, #ffd9a8);
-    background-size:300% 300%;
+    background: var(--hover-glow);
     opacity:0;
     z-index:-1;
     transition: opacity .35s ease;
   }
   .card:hover, .card.tapped{
-    transform: translateY(-16px) scale(1.045);
-    box-shadow: var(--card-shadow-hover), 0 0 22px color-mix(in srgb, var(--accent) 22%, transparent);
+    transform: translateY(-16px) scale(1.08);
+    transform-origin: center;
+    box-shadow: var(--card-shadow-hover), 0 0 24px color-mix(in srgb, var(--hover-glow) 45%, transparent);
     border-color: transparent;
     z-index:40;
   }
   .card:hover::before, .card.tapped::before{
     opacity:1;
-    animation: gradientShift 3s ease infinite;
-  }
-  @keyframes gradientShift{
-    0%{ background-position:0% 50%; }
-    50%{ background-position:100% 50%; }
-    100%{ background-position:0% 50%; }
   }
   .card.past{ opacity:0.55; }
   .card.urgent{
@@ -590,6 +625,55 @@
 </head>
 <body>
 
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="ic-boot" viewBox="0 0 48 48">
+      <path d="M9 34 V19 C9 15 12 12 16 12 H23 L34 21 L40 25 C42 26 43 28 43 30 V33 C43 34 42 35 41 35 H11 C10 35 9 34.6 9 34 Z" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M9 35 H43" stroke-linecap="round"/>
+      <path d="M23 12 V21 H34" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="ic-pole" viewBox="0 0 48 48">
+      <path d="M14 4 L36 44" stroke-linecap="round"/>
+      <path d="M9 7 L18 2" stroke-linecap="round"/>
+      <circle cx="30" cy="34" r="3.4"/>
+      <path d="M34 41 L38 46" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="ic-axe" viewBox="0 0 48 48">
+      <path d="M9 15 Q4 9 10 6 L30 5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M30 5 L34 2" stroke-linecap="round"/>
+      <path d="M19 8 L14 43" stroke-linecap="round"/>
+      <path d="M11 34 H17" stroke-linecap="round"/>
+      <path d="M10.4 37.5 H16.4" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="ic-helmet" viewBox="0 0 48 48">
+      <path d="M7 27 A17 17 0 0 1 41 27" stroke-linecap="round"/>
+      <path d="M5 27 H43" stroke-linecap="round"/>
+      <path d="M16 15 V21" stroke-linecap="round"/>
+      <path d="M32 15 V21" stroke-linecap="round"/>
+      <path d="M14 27 Q24 36 34 27" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="ic-rope" viewBox="0 0 48 48">
+      <path d="M11 40 C11 20 38 22 38 8 C38 -1 15 3 15 13 C15 21 30 21 30 15" stroke-linecap="round"/>
+      <path d="M11 40 L6 44" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="ic-carabiner" viewBox="0 0 48 48">
+      <path d="M18 6 C9 6 9 42 18 42 H27 C35 42 35 6 27 6 Z" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M27 21 H33" stroke-linecap="round"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="bg-icons" aria-hidden="true">
+  <svg class="bg-icon bi-1"><use href="#ic-boot"></use></svg>
+  <svg class="bg-icon bi-2"><use href="#ic-pole"></use></svg>
+  <svg class="bg-icon bi-3"><use href="#ic-axe"></use></svg>
+  <svg class="bg-icon bi-4"><use href="#ic-helmet"></use></svg>
+  <svg class="bg-icon bi-5"><use href="#ic-rope"></use></svg>
+  <svg class="bg-icon bi-6"><use href="#ic-carabiner"></use></svg>
+  <svg class="bg-icon bi-7"><use href="#ic-boot"></use></svg>
+  <svg class="bg-icon bi-8"><use href="#ic-carabiner"></use></svg>
+</div>
+
 <div id="liveClock" class="live-clock"></div>
 
 <div id="notifWrap" class="notif-wrap">
@@ -697,10 +781,10 @@
 
 <div class="contour-bg">
   <svg viewBox="0 0 960 220" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M0 180 Q 120 100 240 150 T 480 130 T 720 160 T 960 110" stroke="#3f7d4c" stroke-width="1.4" fill="none"/>
-    <path d="M0 200 Q 130 130 250 175 T 490 155 T 730 185 T 960 140" stroke="#c9822f" stroke-width="1.2" fill="none" opacity="0.7"/>
-    <path d="M0 220 Q 140 160 260 200 T 500 180 T 740 205 T 960 170" stroke="#3f7d4c" stroke-width="1" fill="none" opacity="0.5"/>
-    <path d="M0 160 Q 110 70 230 120 T 470 100 T 710 130 T 960 80" stroke="#3f7d4c" stroke-width="1" fill="none" opacity="0.35"/>
+    <path d="M0 180 Q 120 100 240 150 T 480 130 T 720 160 T 960 110" stroke="#9c8fe0" stroke-width="1.4" fill="none"/>
+    <path d="M0 200 Q 130 130 250 175 T 490 155 T 730 185 T 960 140" stroke="#c9822f" stroke-width="1.2" fill="none" opacity="0.55"/>
+    <path d="M0 220 Q 140 160 260 200 T 500 180 T 740 205 T 960 170" stroke="#7f93d6" stroke-width="1" fill="none" opacity="0.5"/>
+    <path d="M0 160 Q 110 70 230 120 T 470 100 T 710 130 T 960 80" stroke="#9c8fe0" stroke-width="1" fill="none" opacity="0.3"/>
   </svg>
   <div class="hero">
     <div class="hero-text">
