@@ -1630,7 +1630,7 @@ function triggerConfetti(){
     const el = document.createElement('div');
     el.className = 'confetti-piece';
     const left = Math.random() * 100;
-    const duration = 2.6 + Math.random() * 2;
+    const duration = 4.5 + Math.random() * 3;
     const delay = Math.random() * 0.5;
     const drift = (Math.random() * 200 - 100) + 'px';
     const spin = (Math.random() * 720 + 360) + 'deg';
@@ -1649,7 +1649,7 @@ function triggerConfetti(){
     layer.appendChild(el);
   }
   document.body.appendChild(layer);
-  setTimeout(() => layer.remove(), 4800);
+  setTimeout(() => layer.remove(), 8000);
 }
 
 load();
