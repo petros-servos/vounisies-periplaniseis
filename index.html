@@ -703,7 +703,12 @@ async function load(){
     const data = await apiGet();
     if (data.error) { showStatus('Σφάλμα: ' + data.error); return; }
     ROWS = data;
-    syncKnownIds();
+    if (!notifsInitialized){
+      notifsInitialized = true;
+      initNotificationsFromPersisted_();
+    } else {
+      syncKnownIds();
+    }
     buildFilterOptions();
     render();
   } catch(err){
@@ -941,9 +946,52 @@ addForm.addEventListener('submit', async (e) => {
 // ---- Ειδοποιήσεις νέων εξορμήσεων ----
 let KNOWN_IDS = null; // null = δεν έχει γίνει ακόμα αρχικό sync
 let NOTIFS = [];
+let notifsInitialized = false;
+const KNOWN_IDS_STORAGE_KEY = 'vp_known_ids_v1';
+
+// Ασφαλείς wrappers γύρω από το localStorage — αν δεν είναι διαθέσιμο
+// (π.χ. ιδιωτική περιήγηση, μπλοκαρισμένο cookies/storage), απλά η
+// εφαρμογή συνεχίζει χωρίς persistence, χωρίς να σπάει τίποτα.
+function loadPersistedKnownIds_(){
+  try {
+    const raw = localStorage.getItem(KNOWN_IDS_STORAGE_KEY);
+    if (!raw) return null;
+    return new Set(JSON.parse(raw));
+  } catch(e){ return null; }
+}
+function persistKnownIds_(){
+  try {
+    localStorage.setItem(KNOWN_IDS_STORAGE_KEY, JSON.stringify([...KNOWN_IDS]));
+  } catch(e){ /* αγνόησε -- η εφαρμογή δουλεύει κανονικά χωρίς persistence */ }
+}
 
 function syncKnownIds(){
   KNOWN_IDS = new Set(ROWS.map(r => r.ID));
+  persistKnownIds_();
+}
+
+// Τρέχει ΜΙΑ φορά, στο πρώτο load() μετά το άνοιγμα της σελίδας.
+// Συγκρίνει τα τρέχοντα δεδομένα με ό,τι είχε δει αυτή η συσκευή/browser
+// την τελευταία φορά (αποθηκευμένο στο localStorage) και δημιουργεί
+// ειδοποιήσεις για ό,τι προστέθηκε στο μεταξύ.
+function initNotificationsFromPersisted_(){
+  const persisted = loadPersistedKnownIds_();
+  const currentIds = new Set(ROWS.map(r => r.ID));
+
+  if (persisted !== null){
+    const freshRows = ROWS.filter(r => !persisted.has(r.ID));
+    if (freshRows.length){
+      freshRows.forEach(r => {
+        NOTIFS.unshift({ id: r.ID, title: r['Σχόλια'] || 'Νέα εξόρμηση', who: r['Όνομα'] || '' });
+      });
+      renderNotifs();
+    }
+  }
+  // (αν persisted === null, είναι η πρώτη φορά ποτέ σε αυτή τη συσκευή —
+  // απλά αποθηκεύουμε baseline, χωρίς ειδοποιήσεις)
+
+  KNOWN_IDS = currentIds;
+  persistKnownIds_();
 }
 
 function renderNotifs(){
@@ -1012,6 +1060,7 @@ document.addEventListener('click', (e) => {
   const wrap = document.getElementById('notifWrap');
   if (!wrap.contains(e.target)) document.getElementById('notifPanel').classList.remove('open');
 });
+
 
 setInterval(pollForUpdates, 45000);
 
