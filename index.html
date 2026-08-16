@@ -293,7 +293,7 @@
 
   .toolbar{
     display:flex;
-    flex-wrap:wrap;
+    flex-wrap:nowrap;
     gap:10px;
     align-items:center;
     justify-content:space-between;
@@ -310,12 +310,13 @@
     -webkit-backdrop-filter: blur(14px) saturate(160%);
     border-bottom: 1px solid transparent;
     transition: border-color .25s ease, box-shadow .25s ease;
+    overflow-x:auto;
   }
   .toolbar.stuck{
     border-bottom-color: var(--border);
     box-shadow: 0 8px 20px rgba(0,0,0,0.06);
   }
-  .filters{ display:flex; flex-wrap:wrap; gap:8px; }
+  .filters{ display:flex; flex-wrap:nowrap; gap:8px; flex-shrink:0; }
   select, input[type=text], input[type=date], textarea{
     background: var(--surface);
     border:1px solid var(--border);
@@ -380,7 +381,7 @@
   .btn-maybe:hover{ opacity:0.85; }
   .btn-maybe.active{ background:#bcdbf3; border-color:#bcdbf3; color:#204a6b; }
 
-  .add-toggle{ display:flex; gap:8px; }
+  .add-toggle{ display:flex; gap:8px; flex-shrink:0; }
 
   #addModalOverlay .modal-box{ max-width:520px; }
   .form-grid{
@@ -616,6 +617,9 @@
     .card{ grid-template-columns: 60px 1fr; }
     .card-actions{ grid-column: 1 / -1; flex-direction:row; flex-wrap:wrap; justify-content:flex-end; }
     .form-grid{ grid-template-columns: 1fr; }
+    .toolbar{ flex-wrap:wrap; overflow-x:visible; }
+    .filters{ flex-wrap:wrap; }
+    .add-toggle{ flex-wrap:wrap; }
   }
 
   .confetti-layer{
@@ -955,12 +959,12 @@
       </select>
     </div>
     <div class="add-toggle">
+      <button class="btn-accent" id="btnShowForm">+ Νέα πρόταση</button>
+      <button class="btn-ghost" id="btnRefresh" title="Ανανέωση">↻</button>
       <div class="view-toggle">
         <button class="view-btn active" id="viewListBtn" title="Προβολή λίστας" type="button">☰</button>
         <button class="view-btn" id="viewGridBtn" title="Προβολή ημερολογίου" type="button">▦</button>
       </div>
-      <button class="btn-accent" id="btnShowForm">+ Νέα πρόταση</button>
-      <button class="btn-ghost" id="btnRefresh" title="Ανανέωση">↻</button>
     </div>
   </div>
 
