@@ -180,6 +180,13 @@
   }
   .theme-toggle:hover{ transform: rotate(-12deg); }
 
+  @media (max-width: 620px){
+    .notif-wrap{ flex-direction:column; align-items:flex-end; gap:8px; top:12px; right:12px; }
+    .theme-toggle{ width:38px; height:38px; font-size:17px; order:2; }
+    .notif-bell{ width:38px; height:38px; font-size:17px; }
+    .notif-panel{ width:min(88vw, 300px); }
+  }
+
   @keyframes shimmer{
     0%{ background-position: -400px 0; }
     100%{ background-position: 400px 0; }
