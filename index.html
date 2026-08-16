@@ -331,6 +331,17 @@
     background:#3a3324;
     border-color:#5c4f34;
   }
+  .filters select.remember-select{ font-weight:600; }
+  .filters select.remember-active{
+    background:#ece3fa;
+    border-color:#c9b6ee;
+    color:#5b3f8a;
+  }
+  html[data-theme="dark"] .filters select.remember-active{
+    background:#332a4a;
+    border-color:#5c4f8a;
+    color:#d9cdf5;
+  }
   button{
     font-family: Calibri, Carlito, sans-serif;
     font-weight:600;
@@ -794,6 +805,14 @@
       <select id="fMonth"><option value="">Όλοι οι μήνες</option></select>
       <select id="fDuration"><option value="">Κάθε διάρκεια</option></select>
       <select id="fStay"><option value="">Κάθε διαμονή</option></select>
+      <select id="fRemember" class="remember-select">
+        <option value="">🧠 Για να θυμάμαι</option>
+        <option value="Πέτρος">Πέτρος</option>
+        <option value="Κυριάκος">Κυριάκος</option>
+        <option value="Ελένη">Ελένη</option>
+        <option value="Άρτεμις - Ντιάνα">Άρτεμις - Ντιάνα</option>
+        <option value="Σοφία">Σοφία</option>
+      </select>
     </div>
     <div class="add-toggle">
       <button class="btn-accent" id="btnShowForm">+ Νέα πρόταση</button>
@@ -847,6 +866,7 @@ const statusBanner = document.getElementById('statusBanner');
 const fMonth = document.getElementById('fMonth');
 const fDuration = document.getElementById('fDuration');
 const fStay = document.getElementById('fStay');
+const fRemember = document.getElementById('fRemember');
 
 function showStatus(msg){
   statusBanner.innerHTML = msg;
@@ -952,12 +972,36 @@ function render(){
 
   rows.sort((a,b) => new Date(a['Ημερομηνία']||0) - new Date(b['Ημερομηνία']||0));
 
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // ---- "Για να θυμάμαι": προσωπική προβολή αντί για ομαδοποίηση ανά μήνα ----
+  if (fRemember.value){
+    const name = fRemember.value;
+    const isIn = (field, r) => (r[field] || '').split(',').map(s=>s.trim()).includes(name);
+    const going = rows.filter(r => isIn('Ενδιαφερόμενοι', r));
+    const thinking = rows.filter(r => isIn('Σκέφτονται', r));
+
+    if (going.length === 0 && thinking.length === 0){
+      listArea.innerHTML = `<div class="empty-state">Ο/Η <b>${escapeHtml(name)}</b> δεν έχει δηλώσει "Θα έρθω" ή "Το σκέφτομαι" σε καμία ενεργή εξόρμηση (με τα τρέχοντα φίλτρα). 🧠</div>`;
+      return;
+    }
+
+    const section = (label, items) => items.length ? `
+      <div class="month-group">
+        <div class="month-group-header">${label} — ${escapeHtml(name)}</div>
+        <div class="list">${items.map(r => cardHtml(r, today)).join('')}</div>
+      </div>
+    ` : '';
+
+    listArea.innerHTML = section('🥾 Θα πάω', going) + section('💭 Το σκέφτομαι', thinking);
+    wireCardEvents();
+    return;
+  }
+
   if (rows.length === 0){
     listArea.innerHTML = '<div class="empty-state">Καμία πρόταση εξόρμησης εδώ. Προσθέστε την πρώτη! 🏔️</div>';
     return;
   }
-
-  const today = new Date(); today.setHours(0,0,0,0);
 
   // Ομαδοποίηση ανά μήνα/έτος (τα χωρίς ημερομηνία πάνε σε ξεχωριστή ομάδα)
   const groups = [];
@@ -981,6 +1025,10 @@ function render(){
     </div>
   `).join('');
 
+  wireCardEvents();
+}
+
+function wireCardEvents(){
   listArea.querySelectorAll('[data-go]').forEach(btn => {
     btn.addEventListener('click', () => onInterest(btn.dataset.go));
   });
@@ -1247,6 +1295,7 @@ document.getElementById('btnRefresh').addEventListener('click', () => {
   fMonth.value = '';
   fDuration.value = '';
   fStay.value = '';
+  fRemember.value = '';
   updateFilterStyles();
   load();
 });
@@ -1300,8 +1349,9 @@ function updateFilterStyles(){
   [fMonth, fDuration, fStay].forEach(sel => {
     sel.classList.toggle('filter-active', sel.value !== '');
   });
+  fRemember.classList.toggle('remember-active', fRemember.value !== '');
 }
-[fMonth, fDuration, fStay].forEach(sel => sel.addEventListener('change', () => {
+[fMonth, fDuration, fStay, fRemember].forEach(sel => sel.addEventListener('change', () => {
   updateFilterStyles();
   render();
 }));
