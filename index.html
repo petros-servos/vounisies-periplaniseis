@@ -672,7 +672,8 @@
   .cal-grid{
     display:grid;
     grid-template-columns: repeat(7, 1fr);
-    gap:7px;
+    gap:7px 7px;
+    row-gap:13px;
   }
   .cal-dow{
     text-align:center;
@@ -693,11 +694,12 @@
     flex-direction:column;
     align-items:center;
     justify-content:center;
-    gap:4px;
+    gap:2px;
     cursor:pointer;
     font-family:Calibri, Carlito, sans-serif;
     font-size:14.5px;
     color: var(--text);
+    overflow:visible;
     transition: transform .2s cubic-bezier(.25,1.4,.4,1), box-shadow .2s ease, border-color .2s ease;
   }
   .cal-day:hover{
@@ -710,15 +712,32 @@
   .cal-day.empty:hover{ transform:none; }
   .cal-day.today{ border-color: var(--accent); border-width:2px; font-weight:700; }
   .cal-day.past{ opacity:0.4; }
-  .cal-day .cal-dot{
-    width:7px; height:7px; border-radius:50%;
+  .cal-day .cal-tab{
+    position:absolute;
+    bottom:-7px;
+    left:50%;
+    transform: translateX(-50%);
+    min-width:20px;
+    height:16px;
+    padding:0 5px;
     background: var(--accent);
+    color:#ffffff;
+    font-size:10.5px;
+    font-weight:700;
+    line-height:1;
+    border-radius:6px 6px 3px 3px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
   }
-  .cal-day .cal-dot.urgent{ background: var(--danger); }
+  .cal-day .cal-tab.urgent{ background: var(--danger); }
+  .cal-day:hover .cal-tab{ bottom:-9px; }
   @media (max-width: 620px){
-    .cal-grid{ gap:4px; }
+    .cal-grid{ gap:4px; row-gap:9px; }
     .cal-day{ font-size:12px; border-radius:8px; }
     .cal-title{ font-size:16px; }
+    .cal-day .cal-tab{ height:14px; font-size:9.5px; bottom:-6px; }
   }
   #dayModalOverlay .modal-box{ max-width:600px; max-height:80vh; overflow-y:auto; }
 </style>
@@ -1256,10 +1275,12 @@ function renderCalendar(){
     const isPast = d < today;
     const daysUntil = Math.round((d - today) / 86400000);
     const isUrgent = events.length > 0 && daysUntil >= 0 && daysUntil <= 7;
-    const dot = events.length ? `<div class="cal-dot ${isUrgent ? 'urgent' : ''}"></div>` : '';
+    const tab = events.length
+      ? `<div class="cal-tab ${isUrgent ? 'urgent' : ''}">${events.length > 1 ? events.length : ''}</div>`
+      : '';
     const key = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     html += `<div class="cal-day ${isToday?'today':''} ${isPast?'past':''}" data-date="${key}">
-      <div>${day}</div>${dot}
+      <div>${day}</div>${tab}
     </div>`;
   }
 
