@@ -6,7 +6,7 @@
 <title>Βουνίσιες Περιπλανήσεις</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23dcf0d6'/%3E%3Ccircle cx='72' cy='30' r='11' fill='%23e3a857'/%3E%3Cpath d='M8 78 L34 38 L50 60 L62 44 L94 78 Z' fill='%232f6b3e'/%3E%3Cpath d='M34 38 L44 52 L38 55 L46 60 L50 60' fill='none' stroke='%231d4a2b' stroke-width='2' stroke-linejoin='round'/%3E%3Cpath d='M62 44 L69 54 L64 56 L71 60 L74 58' fill='none' stroke='%231d4a2b' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400;1,700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg: #e9ecf5;
@@ -502,25 +502,32 @@
   }
   .date-block .day{
     position:relative;
-    font-family:'Share Tech Mono', Calibri, monospace;
+    font-family:Calibri, Carlito, sans-serif;
     font-size:26px;
-    font-weight:400;
+    font-weight:700;
     color:var(--accent);
     text-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent);
     line-height:1;
-    letter-spacing:0.02em;
   }
   .date-block .mon{
     position:relative;
-    font-family:'Share Tech Mono', Calibri, monospace;
+    font-family:Calibri, Carlito, sans-serif;
     font-size:11.5px;
     color:var(--text-dim);
     text-transform:uppercase;
-    letter-spacing:0.14em;
+    letter-spacing:0.08em;
+    font-weight:600;
   }
-  .date-block.range .day{ font-size:19px; letter-spacing:0; }
-  .date-block.compact .day{ font-size:12.5px; letter-spacing:0; }
-  .date-block.compact .mon{ display:none; }
+  .date-block.range .day{ font-size:19px; }
+  .date-block.compact .day,
+  .date-block.compact .mon{
+    font-size:12.5px;
+    text-transform:none;
+    letter-spacing:0;
+    color:var(--accent);
+    font-weight:700;
+    text-shadow: 0 0 8px color-mix(in srgb, var(--accent) 50%, transparent);
+  }
 
   .card-main .title{
     font-family:Calibri, Carlito, sans-serif;
@@ -1009,10 +1016,12 @@ function dateBlockParts(dt, days){
   if (dt.getMonth() === end.getMonth() && dt.getFullYear() === end.getFullYear()){
     return { day: `${dt.getDate()}-${end.getDate()}`, mon: MONTHS_EL[dt.getMonth()], small:false, range:true };
   }
-  // Η εξόρμηση ξεκινάει σε έναν μήνα και τελειώνει σε άλλον
+  // Η εξόρμηση ξεκινάει σε έναν μήνα και τελειώνει σε άλλον -- δείχνουμε
+  // "αρχή μήνα" στην πάνω γραμμή και "τέλος μήνα" στην κάτω, και τα δύο
+  // με το όνομα του μήνα σε γράμματα ώστε να είναι ξεκάθαρο.
   return {
-    day: `${dt.getDate()}/${dt.getMonth()+1}–${end.getDate()}/${end.getMonth()+1}`,
-    mon: '',
+    day: `${dt.getDate()} ${MONTHS_EL[dt.getMonth()]}`,
+    mon: `${end.getDate()} ${MONTHS_EL[end.getMonth()]}`,
     small: true,
     range: true
   };
@@ -1048,7 +1057,7 @@ function cardHtml(r, today){
         <div class="mon">${dateParts.mon}</div>
       </div>
       <div class="card-main">
-        <p class="title"><a href="${escapeAttr(link)}" target="_blank" rel="noopener">${escapeHtml(title)}</a></p>
+        <p class="title">👉 <a href="${escapeAttr(link)}" target="_blank" rel="noopener">${escapeHtml(title)}</a></p>
         <div class="meta">
           ${urgentBadge}
           ${r['Διάρκεια'] ? `<span class="tag duration">${escapeHtml(r['Διάρκεια'])}</span>` : ''}
