@@ -6,7 +6,7 @@
 <title>Βουνίσιες Περιπλανήσεις</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23dcf0d6'/%3E%3Ccircle cx='72' cy='30' r='11' fill='%23e3a857'/%3E%3Cpath d='M8 78 L34 38 L50 60 L62 44 L94 78 Z' fill='%232f6b3e'/%3E%3Cpath d='M34 38 L44 52 L38 55 L46 60 L50 60' fill='none' stroke='%231d4a2b' stroke-width='2' stroke-linejoin='round'/%3E%3Cpath d='M62 44 L69 54 L64 56 L71 60 L74 58' fill='none' stroke='%231d4a2b' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400;1,700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg: #d3e8c8;
@@ -62,6 +62,18 @@
   }
   ::selection{ background: var(--accent-soft); color:var(--text); }
   body{ background: var(--bg); }
+  body::before{
+    content:'';
+    position:fixed;
+    inset:0;
+    background-image: radial-gradient(var(--border) 1px, transparent 1px);
+    background-size: 24px 24px;
+    opacity:0.4;
+    pointer-events:none;
+    z-index:-1;
+    transition: opacity .35s ease;
+  }
+  html[data-theme="dark"] body::before{ opacity:0.25; }
 
   a { color: var(--accent); }
 
@@ -206,7 +218,11 @@
     display:none;
     position:absolute; top:56px; right:0;
     width:300px; max-height:360px; overflow-y:auto;
-    background: var(--surface); border:1px solid var(--border);
+    background: var(--surface);
+    background: color-mix(in srgb, var(--surface) 82%, transparent);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border:1px solid var(--border);
     border-radius: var(--radius);
     box-shadow: 0 10px 30px rgba(34,53,38,0.22);
   }
@@ -228,12 +244,19 @@
   /* ---- Name modal ---- */
   .modal-overlay{
     display:none; position:fixed; inset:0; z-index:1100;
-    background: rgba(20,30,24,0.55);
+    background: rgba(10,18,14,0.45);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     align-items:center; justify-content:center;
   }
   .modal-overlay.show{ display:flex; }
   .modal-box{
-    background: var(--surface); border-radius: var(--radius);
+    background: var(--surface);
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border:1px solid var(--border);
+    border-radius: var(--radius);
     padding:24px; width:90%; max-width:340px;
     box-shadow: 0 20px 50px rgba(0,0,0,0.3);
   }
@@ -262,9 +285,9 @@
     margin-left: -4px;
     margin-right: -4px;
     background: var(--bg);
-    background: color-mix(in srgb, var(--bg) 88%, transparent);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background: color-mix(in srgb, var(--bg) 72%, transparent);
+    backdrop-filter: blur(14px) saturate(160%);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
     border-bottom: 1px solid transparent;
     transition: border-color .25s ease, box-shadow .25s ease;
   }
@@ -398,6 +421,7 @@
   .month-group:first-child .month-group-header{ margin-top:0; }
 
   .card{
+    position:relative;
     background: var(--surface);
     border:1px solid var(--border);
     border-radius: var(--radius);
@@ -407,14 +431,35 @@
     gap:18px;
     align-items:center;
     box-shadow: var(--card-shadow);
-    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .35s ease;
+    transition: transform .45s cubic-bezier(.25,1.4,.4,1), box-shadow .4s ease, border-color .3s ease, background .35s ease;
     animation: cardEnter .4s ease both;
+    z-index:1;
   }
-  .card:hover{
-    transform: translateY(-3px);
-    box-shadow: var(--card-shadow-hover);
-    border-color: var(--accent);
-    border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  .card::before{
+    content:'';
+    position:absolute;
+    inset:-1.5px;
+    border-radius:calc(var(--radius) + 1.5px);
+    background: linear-gradient(120deg, var(--accent), var(--moss), var(--navy), var(--accent));
+    background-size:300% 300%;
+    opacity:0;
+    z-index:-1;
+    transition: opacity .35s ease;
+  }
+  .card:hover, .card.tapped{
+    transform: translateY(-9px) scale(1.015);
+    box-shadow: var(--card-shadow-hover), 0 0 32px color-mix(in srgb, var(--accent) 35%, transparent);
+    border-color: transparent;
+    z-index:30;
+  }
+  .card:hover::before, .card.tapped::before{
+    opacity:1;
+    animation: gradientShift 3s ease infinite;
+  }
+  @keyframes gradientShift{
+    0%{ background-position:0% 50%; }
+    50%{ background-position:100% 50%; }
+    100%{ background-position:0% 50%; }
   }
   .card.past{ opacity:0.55; }
   .card.urgent{
@@ -427,7 +472,7 @@
     box-shadow: 0 0 0 1px var(--danger), var(--card-shadow);
   }
   .card.urgent .date-block{ background: var(--danger); }
-  .card.urgent .date-block .day{ color:#ffffff; }
+  .card.urgent .date-block .day{ color:#ffffff; text-shadow:0 0 12px rgba(255,255,255,0.7); }
   .card.urgent .date-block .mon{ color:#ffe3e3; }
   .tag.urgent-tag{
     background: var(--danger);
@@ -440,14 +485,45 @@
     50%{ opacity:0.65; }
   }
   .date-block{
+    position:relative;
     text-align:center;
-    font-family:Calibri, Carlito, sans-serif;
+    background: linear-gradient(160deg, var(--surface-2), color-mix(in srgb, var(--moss) 12%, var(--surface-2)));
     background: var(--surface-2);
+    border:1px solid var(--border);
     border-radius:10px;
     padding:10px 4px;
+    overflow:hidden;
   }
-  .date-block .day{ font-size:24.9px; font-weight:600; color:var(--accent); line-height:1; }
-  .date-block .mon{ font-size:12.4px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.06em; }
+  .date-block::after{
+    content:'';
+    position:absolute;
+    inset:0;
+    background: repeating-linear-gradient(
+      0deg,
+      color-mix(in srgb, var(--text) 4%, transparent) 0px,
+      transparent 1px,
+      transparent 3px
+    );
+    pointer-events:none;
+  }
+  .date-block .day{
+    position:relative;
+    font-family:'Share Tech Mono', Calibri, monospace;
+    font-size:26px;
+    font-weight:400;
+    color:var(--accent);
+    text-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent);
+    line-height:1;
+    letter-spacing:0.02em;
+  }
+  .date-block .mon{
+    position:relative;
+    font-family:'Share Tech Mono', Calibri, monospace;
+    font-size:11.5px;
+    color:var(--text-dim);
+    text-transform:uppercase;
+    letter-spacing:0.14em;
+  }
 
   .card-main .title{
     font-family:Calibri, Carlito, sans-serif;
@@ -895,6 +971,20 @@ function render(){
   });
   listArea.querySelectorAll('[data-del]').forEach(btn => {
     btn.addEventListener('click', () => onDelete(btn.dataset.del));
+  });
+  attachCardTapEffects();
+}
+
+// Σε touch συσκευές δεν υπάρχει :hover, οπότε αναπαράγουμε το ίδιο
+// εφέ "έρχεται μπροστά" με ένα σύντομο tap πάνω στην κάρτα.
+function attachCardTapEffects(){
+  listArea.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'touch') return;
+      card.classList.add('tapped');
+      clearTimeout(card._tapTimeout);
+      card._tapTimeout = setTimeout(() => card.classList.remove('tapped'), 1400);
+    });
   });
 }
 
