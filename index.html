@@ -876,6 +876,7 @@ function cardHtml(r, today){
   const daysUntil = dt ? Math.round((dt - today) / 86400000) : null;
   const isToday = daysUntil === 0;
   const isTomorrow = daysUntil === 1;
+  const isUrgentWeek = daysUntil !== null && daysUntil >= 0 && daysUntil <= 7;
   const day = dt ? dt.getDate() : '—';
   const mon = dt ? MONTHS_EL[dt.getMonth()] : '';
   const link = r['Πρόταση / Link Πεζοπορίας'] || '#';
@@ -885,10 +886,11 @@ function cardHtml(r, today){
   const maybe = (r['Σκέφτονται'] || '').split(',').map(s=>s.trim()).filter(Boolean);
   const iAmIn = MY_NAME && interested.includes(MY_NAME);
   const iAmMaybe = MY_NAME && maybe.includes(MY_NAME);
-  const urgentClass = isToday ? 'urgent urgent-today' : (isTomorrow ? 'urgent urgent-tomorrow' : '');
-  const urgentBadge = isToday
-    ? '<span class="tag urgent-tag">🔴 Σήμερα!</span>'
-    : (isTomorrow ? '<span class="tag urgent-tag">🔴 Αύριο</span>' : '');
+  const urgentClass = isUrgentWeek ? ('urgent' + (isToday ? ' urgent-today' : '')) : '';
+  let urgentBadge = '';
+  if (isToday) urgentBadge = '<span class="tag urgent-tag">🔴 Σήμερα!</span>';
+  else if (isTomorrow) urgentBadge = '<span class="tag urgent-tag">🔴 Αύριο</span>';
+  else if (isUrgentWeek) urgentBadge = `<span class="tag urgent-tag">🔴 σε ${daysUntil} μέρες</span>`;
 
   return `
     <div class="card ${isPast ? 'past' : ''} ${urgentClass}" id="exp-${r.ID}">
@@ -904,8 +906,8 @@ function cardHtml(r, today){
           ${r['Διαμονή'] ? `<span class="tag stay">${escapeHtml(r['Διαμονή'])}</span>` : ''}
           ${who ? `<span class="tag who">πρόταση: ${escapeHtml(who)}</span>` : ''}
         </div>
-        <div class="interested">${interested.length ? `<b>${interested.length}</b> θα έρθουν: ${escapeHtml(interested.join(', '))}` : 'Κανείς δεν έχει δηλώσει ενδιαφέρον ακόμα'}</div>
-        ${maybe.length ? `<div class="interested maybe-line">🤔 <b>${maybe.length}</b> το σκέφτονται: ${escapeHtml(maybe.join(', '))}</div>` : ''}
+        <div class="interested">${interested.length ? `🥾 <b>${interested.length}</b> θα έρθουν: ${escapeHtml(interested.join(', '))}` : '🥾 Κανείς δεν έχει δηλώσει ενδιαφέρον ακόμα'}</div>
+        ${maybe.length ? `<div class="interested maybe-line">💭 <b>${maybe.length}</b> το σκέφτονται: ${escapeHtml(maybe.join(', '))}</div>` : ''}
       </div>
       <div class="card-actions">
         <button class="btn-ghost go-btn ${iAmIn ? 'active' : ''}" data-go="${r.ID}">${iAmIn ? '✓ Θα έρθω' : 'Θα έρθω'}</button>
