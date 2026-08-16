@@ -610,6 +610,26 @@
     .card-actions{ grid-column: 1 / -1; flex-direction:row; flex-wrap:wrap; justify-content:flex-end; }
     .form-grid{ grid-template-columns: 1fr; }
   }
+
+  .confetti-layer{
+    position:fixed;
+    inset:0;
+    z-index:2000;
+    pointer-events:none;
+    overflow:hidden;
+  }
+  .confetti-piece{
+    position:absolute;
+    top:-24px;
+    opacity:0.95;
+    animation-name: confettiFall;
+    animation-timing-function: cubic-bezier(.25,.46,.45,.94);
+    animation-fill-mode: forwards;
+  }
+  @keyframes confettiFall{
+    0%{ transform: translateY(0) translateX(0) rotate(0deg); opacity:1; }
+    100%{ transform: translateY(112vh) translateX(var(--drift,0px)) rotate(var(--spin,540deg)); opacity:0.85; }
+  }
 </style>
 </head>
 <body>
@@ -1181,8 +1201,15 @@ async function onInterest(id){
     if (!name) return;
     MY_NAME = name;
   }
+  const row = ROWS.find(r => r.ID === id);
+  const alreadyIn = row && (row['Ενδιαφερόμενοι'] || '').split(',').map(s=>s.trim()).includes(MY_NAME);
   const res = await apiPost({ action:'interest', id, name: MY_NAME });
-  if (res.ok) load(); else showStatus('Κάτι πήγε στραβά.');
+  if (res.ok){
+    if (!alreadyIn) triggerConfetti(); // μόνο όταν ΜΠΑΙΝΕΙ στο "Θα έρθω", όχι όταν το αναιρεί
+    load();
+  } else {
+    showStatus('Κάτι πήγε στραβά.');
+  }
 }
 
 async function onMaybe(id){
@@ -1591,6 +1618,38 @@ if (heroLogoImg){
     clearTimeout(heroLogoImg._tapTimeout);
     heroLogoImg._tapTimeout = setTimeout(() => heroLogoImg.classList.remove('tapped'), 1400);
   });
+}
+
+// ---- Κομφετί εορτασμού όταν κάποιος δηλώνει "Θα έρθω" ----
+function triggerConfetti(){
+  const colors = ['#f2971f','#3f7d4c','#b9a6f0','#e0838a','#f2a33d','#7f93d6','#ffd9a8'];
+  const layer = document.createElement('div');
+  layer.className = 'confetti-layer';
+  const count = 110;
+  for (let i = 0; i < count; i++){
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    const left = Math.random() * 100;
+    const duration = 2.6 + Math.random() * 2;
+    const delay = Math.random() * 0.5;
+    const drift = (Math.random() * 200 - 100) + 'px';
+    const spin = (Math.random() * 720 + 360) + 'deg';
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const size = 6 + Math.random() * 7;
+    const round = Math.random() < 0.5;
+    el.style.left = left + '%';
+    el.style.width = size + 'px';
+    el.style.height = (round ? size : size * 1.6) + 'px';
+    el.style.background = color;
+    el.style.borderRadius = round ? '50%' : '2px';
+    el.style.animationDuration = duration + 's';
+    el.style.animationDelay = delay + 's';
+    el.style.setProperty('--drift', drift);
+    el.style.setProperty('--spin', spin);
+    layer.appendChild(el);
+  }
+  document.body.appendChild(layer);
+  setTimeout(() => layer.remove(), 4800);
 }
 
 load();
