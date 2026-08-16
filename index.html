@@ -440,17 +440,17 @@
     position:absolute;
     inset:-1.5px;
     border-radius:calc(var(--radius) + 1.5px);
-    background: linear-gradient(120deg, var(--accent), var(--moss), var(--navy), var(--accent));
+    background: linear-gradient(120deg, #ffd9a8, #baf3c6, #b9dcff, #ffd9a8);
     background-size:300% 300%;
     opacity:0;
     z-index:-1;
     transition: opacity .35s ease;
   }
   .card:hover, .card.tapped{
-    transform: translateY(-9px) scale(1.015);
-    box-shadow: var(--card-shadow-hover), 0 0 32px color-mix(in srgb, var(--accent) 35%, transparent);
+    transform: translateY(-16px) scale(1.045);
+    box-shadow: var(--card-shadow-hover), 0 0 22px color-mix(in srgb, var(--accent) 22%, transparent);
     border-color: transparent;
-    z-index:30;
+    z-index:40;
   }
   .card:hover::before, .card.tapped::before{
     opacity:1;
