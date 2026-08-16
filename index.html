@@ -637,6 +637,90 @@
     0%{ transform: translateY(0) translateX(0) rotate(0deg); opacity:1; }
     100%{ transform: translateY(112vh) translateX(var(--drift,0px)) rotate(var(--spin,540deg)); opacity:0.85; }
   }
+
+  /* ---- Εναλλαγή προβολής Λίστα/Ημερολόγιο ---- */
+  .view-toggle{
+    display:flex;
+    border:1px solid var(--border);
+    border-radius:9px;
+    overflow:hidden;
+  }
+  .view-btn{
+    background: var(--surface);
+    border:none;
+    padding:9px 13px;
+    font-size:16px;
+    cursor:pointer;
+    color: var(--text-dim);
+    border-radius:0;
+  }
+  .view-btn + .view-btn{ border-left:1px solid var(--border); }
+  .view-btn.active{ background: var(--accent); color:#1c1204; }
+
+  /* ---- Ημερολόγιο ---- */
+  .cal-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:16px;
+  }
+  .cal-title{
+    font-family:Calibri, Carlito, sans-serif;
+    font-weight:700;
+    font-size:20px;
+  }
+  .cal-grid{
+    display:grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap:7px;
+  }
+  .cal-dow{
+    text-align:center;
+    font-size:12px;
+    font-weight:600;
+    color: var(--text-dim);
+    padding:2px 0 8px;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+  }
+  .cal-day{
+    position:relative;
+    aspect-ratio: 1 / 1;
+    border:1px solid var(--border);
+    border-radius:10px;
+    background: var(--surface);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:4px;
+    cursor:pointer;
+    font-family:Calibri, Carlito, sans-serif;
+    font-size:14.5px;
+    color: var(--text);
+    transition: transform .2s cubic-bezier(.25,1.4,.4,1), box-shadow .2s ease, border-color .2s ease;
+  }
+  .cal-day:hover{
+    transform: translateY(-4px) scale(1.05);
+    box-shadow: var(--card-shadow-hover);
+    border-color: var(--hover-glow);
+    z-index:5;
+  }
+  .cal-day.empty{ visibility:hidden; cursor:default; box-shadow:none; }
+  .cal-day.empty:hover{ transform:none; }
+  .cal-day.today{ border-color: var(--accent); border-width:2px; font-weight:700; }
+  .cal-day.past{ opacity:0.4; }
+  .cal-day .cal-dot{
+    width:7px; height:7px; border-radius:50%;
+    background: var(--accent);
+  }
+  .cal-day .cal-dot.urgent{ background: var(--danger); }
+  @media (max-width: 620px){
+    .cal-grid{ gap:4px; }
+    .cal-day{ font-size:12px; border-radius:8px; }
+    .cal-title{ font-size:16px; }
+  }
+  #dayModalOverlay .modal-box{ max-width:600px; max-height:80vh; overflow-y:auto; }
 </style>
 </head>
 <body>
@@ -804,6 +888,16 @@
   </div>
 </div>
 
+<div id="dayModalOverlay" class="modal-overlay">
+  <div class="modal-box day-modal-box">
+    <h3 id="dayModalTitle">Εξορμήσεις</h3>
+    <div id="dayModalList" class="list"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost" id="dayModalClose">Κλείσιμο</button>
+    </div>
+  </div>
+</div>
+
 <div class="contour-bg">
   <svg viewBox="0 0 960 220" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M0 180 Q 120 100 240 150 T 480 130 T 720 160 T 960 110" stroke="#9c8fe0" stroke-width="1.4" fill="none"/>
@@ -842,6 +936,10 @@
       </select>
     </div>
     <div class="add-toggle">
+      <div class="view-toggle">
+        <button class="view-btn active" id="viewListBtn" title="Προβολή λίστας" type="button">☰</button>
+        <button class="view-btn" id="viewGridBtn" title="Προβολή ημερολογίου" type="button">▦</button>
+      </div>
       <button class="btn-accent" id="btnShowForm">+ Νέα πρόταση</button>
       <button class="btn-ghost" id="btnRefresh" title="Ανανέωση">↻</button>
     </div>
@@ -849,6 +947,15 @@
 
   <div id="listArea">
     <div class="empty-state">Φόρτωση προτάσεων…</div>
+  </div>
+
+  <div id="calendarArea" style="display:none;">
+    <div class="cal-header">
+      <button class="btn-ghost" id="calPrev" type="button">◀</button>
+      <div class="cal-title" id="calTitle">—</div>
+      <button class="btn-ghost" id="calNext" type="button">▶</button>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
   </div>
 
 </div>
@@ -887,8 +994,14 @@ updateLiveClock();
 setInterval(updateLiveClock, 15000);
 let ROWS = [];
 let MY_NAME = '';
+let currentView = 'list'; // 'list' ή 'grid' -- πάντα ξεκινάει από 'list'
+let calDate = new Date(); calDate.setDate(1); calDate.setHours(0,0,0,0);
+const MONTHS_FULL_EL = ['Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος','Μάιος','Ιούνιος','Ιούλιος','Αύγουστος','Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος'];
 
 const listArea = document.getElementById('listArea');
+const calendarArea = document.getElementById('calendarArea');
+const calGrid = document.getElementById('calGrid');
+const calTitle = document.getElementById('calTitle');
 const statusBanner = document.getElementById('statusBanner');
 const fMonth = document.getElementById('fMonth');
 const fDuration = document.getElementById('fDuration');
@@ -950,7 +1063,7 @@ async function load(){
     }
     buildFilterOptions();
     updateFilterStyles();
-    render();
+    refreshView();
   } catch(err){
     showStatus('Δεν ήταν δυνατή η σύνδεση με το Google Sheet. Ελέγξτε ότι το Apps Script έχει γίνει deploy με πρόσβαση "Anyone".');
     listArea.innerHTML = '';
@@ -1055,26 +1168,176 @@ function render(){
   wireCardEvents();
 }
 
-function wireCardEvents(){
-  listArea.querySelectorAll('[data-go]').forEach(btn => {
+function wireCardEvents(container){
+  container = container || listArea;
+  container.querySelectorAll('[data-go]').forEach(btn => {
     btn.addEventListener('click', () => onInterest(btn.dataset.go));
   });
-  listArea.querySelectorAll('[data-maybe]').forEach(btn => {
+  container.querySelectorAll('[data-maybe]').forEach(btn => {
     btn.addEventListener('click', () => onMaybe(btn.dataset.maybe));
   });
-  listArea.querySelectorAll('[data-edit]').forEach(btn => {
+  container.querySelectorAll('[data-edit]').forEach(btn => {
     btn.addEventListener('click', () => openEditModal(btn.dataset.edit));
   });
-  listArea.querySelectorAll('[data-del]').forEach(btn => {
+  container.querySelectorAll('[data-del]').forEach(btn => {
     btn.addEventListener('click', () => onDelete(btn.dataset.del));
   });
-  attachCardTapEffects();
+  attachCardTapEffects(container);
+}
+
+function refreshView(){
+  if (currentView === 'grid') renderCalendar();
+  else render();
+}
+
+// ---- Προβολή Λίστα/Ημερολόγιο ----
+const viewListBtn = document.getElementById('viewListBtn');
+const viewGridBtn = document.getElementById('viewGridBtn');
+
+function setView(view){
+  currentView = view;
+  viewListBtn.classList.toggle('active', view === 'list');
+  viewGridBtn.classList.toggle('active', view === 'grid');
+  listArea.style.display = view === 'list' ? '' : 'none';
+  calendarArea.style.display = view === 'grid' ? '' : 'none';
+  // Το φίλτρο μήνα δεν έχει νόημα στο ημερολόγιο -- εκεί πλοηγείσαι με τα βελάκια
+  fMonth.style.display = view === 'grid' ? 'none' : '';
+  refreshView();
+}
+viewListBtn.addEventListener('click', () => setView('list'));
+viewGridBtn.addEventListener('click', () => setView('grid'));
+
+// Ίδια φίλτρα (Διάρκεια/Διαμονή/Για να θυμάμαι) με τη λίστα, χωρίς το φίλτρο μήνα
+function getCalendarFilteredRows(){
+  let rows = [...ROWS];
+  if (fDuration.value) rows = rows.filter(r => r['Διάρκεια'] === fDuration.value);
+  if (fStay.value) rows = rows.filter(r => r['Διαμονή'] === fStay.value);
+  if (fRemember.value){
+    const name = fRemember.value;
+    rows = rows.filter(r =>
+      (r['Ενδιαφερόμενοι'] || '').split(',').map(s=>s.trim()).includes(name) ||
+      (r['Σκέφτονται'] || '').split(',').map(s=>s.trim()).includes(name)
+    );
+  }
+  return rows;
+}
+
+function eventsOnDate(rows, target){
+  return rows.filter(r => {
+    const start = r['Ημερομηνία'] ? new Date(r['Ημερομηνία']) : null;
+    if (!start || isNaN(start)) return false;
+    start.setHours(0,0,0,0);
+    const days = daysForRow(r);
+    const end = new Date(start);
+    end.setDate(end.getDate() + days - 1);
+    return target >= start && target <= end;
+  });
+}
+
+function renderCalendar(){
+  const year = calDate.getFullYear();
+  const month = calDate.getMonth();
+  calTitle.textContent = `${MONTHS_FULL_EL[month]} ${year}`;
+
+  const rows = getCalendarFilteredRows();
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  const firstOfMonth = new Date(year, month, 1);
+  const startWeekday = (firstOfMonth.getDay() + 6) % 7; // Δευτέρα = 0
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  let html = ['Δε','Τρ','Τε','Πε','Πα','Σα','Κυ'].map(d => `<div class="cal-dow">${d}</div>`).join('');
+  for (let i = 0; i < startWeekday; i++) html += '<div class="cal-day empty"></div>';
+
+  for (let day = 1; day <= daysInMonth; day++){
+    const d = new Date(year, month, day);
+    const events = eventsOnDate(rows, d);
+    const isToday = d.getTime() === today.getTime();
+    const isPast = d < today;
+    const daysUntil = Math.round((d - today) / 86400000);
+    const isUrgent = events.length > 0 && daysUntil >= 0 && daysUntil <= 7;
+    const dot = events.length ? `<div class="cal-dot ${isUrgent ? 'urgent' : ''}"></div>` : '';
+    const key = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    html += `<div class="cal-day ${isToday?'today':''} ${isPast?'past':''}" data-date="${key}">
+      <div>${day}</div>${dot}
+    </div>`;
+  }
+
+  calGrid.innerHTML = html;
+  calGrid.querySelectorAll('.cal-day:not(.empty)').forEach(cell => {
+    cell.addEventListener('click', () => onDayClick(cell.dataset.date));
+  });
+}
+
+document.getElementById('calPrev').addEventListener('click', () => {
+  calDate.setMonth(calDate.getMonth() - 1);
+  renderCalendar();
+});
+document.getElementById('calNext').addEventListener('click', () => {
+  calDate.setMonth(calDate.getMonth() + 1);
+  renderCalendar();
+});
+
+const dayModalOverlay = document.getElementById('dayModalOverlay');
+let currentDayModalDate = null;
+document.getElementById('dayModalClose').addEventListener('click', () => {
+  dayModalOverlay.classList.remove('show');
+  currentDayModalDate = null;
+});
+
+function renderDayModalContent(target){
+  const today = new Date(); today.setHours(0,0,0,0);
+  document.getElementById('dayModalTitle').textContent = formatGreekDateLong(target);
+  const dayModalList = document.getElementById('dayModalList');
+  const rows = getCalendarFilteredRows();
+  const events = eventsOnDate(rows, target);
+  dayModalList.innerHTML = events.map(r => cardHtml(r, today)).join('');
+  wireCardEvents(dayModalList);
+  return events.length;
+}
+
+function onDayClick(dateKey){
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const target = new Date(y, m - 1, d);
+  const rows = getCalendarFilteredRows();
+  const events = eventsOnDate(rows, target);
+
+  if (events.length === 0){
+    // Καμία εξόρμηση αυτή τη μέρα -- ανοίγει η φόρμα «Νέα πρόταση» με προσυμπληρωμένη ημερομηνία
+    document.getElementById('fDate').value = dateKey;
+    addModalOverlay.classList.add('show');
+    return;
+  }
+
+  currentDayModalDate = dateKey;
+  renderDayModalContent(target);
+  dayModalOverlay.classList.add('show');
+}
+
+// Αν το day modal είναι ανοιχτό όταν φτάνουν φρέσκα δεδομένα (π.χ. μετά από
+// "Θα έρθω" ή διαγραφή μέσα από το ίδιο modal), ξαναχτίζουμε το περιεχόμενό
+// του ώστε να δείχνει αμέσως την ενημερωμένη κατάσταση. Αν δεν έχει μείνει
+// καμία εξόρμηση εκείνη τη μέρα, το modal απλά κλείνει.
+function refreshDayModalIfOpen(){
+  if (!dayModalOverlay.classList.contains('show') || !currentDayModalDate) return;
+  const [y, m, d] = currentDayModalDate.split('-').map(Number);
+  const target = new Date(y, m - 1, d);
+  const remaining = renderDayModalContent(target);
+  if (remaining === 0){
+    dayModalOverlay.classList.remove('show');
+    currentDayModalDate = null;
+  }
+}
+
+function formatGreekDateLong(d){
+  return `${DAYS_EL[d.getDay()]} ${d.getDate()} ${MONTHS_GEN_EL[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 // Σε touch συσκευές δεν υπάρχει :hover, οπότε αναπαράγουμε το ίδιο
 // εφέ "έρχεται μπροστά" με ένα σύντομο tap πάνω στην κάρτα.
-function attachCardTapEffects(){
-  listArea.querySelectorAll('.card').forEach(card => {
+function attachCardTapEffects(container){
+  container = container || listArea;
+  container.querySelectorAll('.card').forEach(card => {
     card.addEventListener('pointerdown', (e) => {
       if (e.pointerType !== 'touch') return;
       card.classList.add('tapped');
@@ -1213,7 +1476,8 @@ async function onInterest(id){
   const res = await apiPost({ action:'interest', id, name: MY_NAME });
   if (res.ok){
     if (!alreadyIn) triggerConfetti(); // μόνο όταν ΜΠΑΙΝΕΙ στο "Θα έρθω", όχι όταν το αναιρεί
-    load();
+    await load();
+    refreshDayModalIfOpen();
   } else {
     showStatus('Κάτι πήγε στραβά.');
   }
@@ -1227,7 +1491,8 @@ async function onMaybe(id){
   }
   const res = await apiPost({ action:'maybe', id, name: MY_NAME });
   if (res.ok){
-    load();
+    await load();
+    refreshDayModalIfOpen();
   } else if (res.error === 'already_interested'){
     showStatus('Έχετε ήδη δηλώσει "Θα έρθω" σε αυτή την εξόρμηση.');
   } else {
@@ -1264,6 +1529,9 @@ function resolveDaysFrom(durationValue, daysInputEl){
 function openEditModal(id){
   const r = ROWS.find(row => row.ID === id);
   if (!r) return;
+  const dmo = document.getElementById('dayModalOverlay');
+  if (dmo) dmo.classList.remove('show');
+  currentDayModalDate = null;
   document.getElementById('eId').value = r.ID;
   document.getElementById('eLink').value = r['Πρόταση / Link Πεζοπορίας'] || '';
   document.getElementById('eDate').value = r['Ημερομηνία'] || '';
@@ -1387,7 +1655,7 @@ function updateFilterStyles(){
 }
 [fMonth, fDuration, fStay, fRemember].forEach(sel => sel.addEventListener('change', () => {
   updateFilterStyles();
-  render();
+  refreshView();
 }));
 
 // ---- Ειδοποιήσεις νέων εξορμήσεων ----
@@ -1494,7 +1762,7 @@ async function pollForUpdates(){
       ROWS = data;
       syncKnownIds();
       buildFilterOptions();
-      render();
+      refreshView();
       renderNotifs();
     }
   } catch(err){ /* σιωπηλή αποτυχία στο background poll */ }
@@ -1604,7 +1872,8 @@ async function onDelete(id){
   if (!confirm('Σίγουρα θέλετε να διαγράψετε οριστικά αυτή την εξόρμηση;')) return;
   const res = await apiPost({ action:'delete', id, adminPassword: ADMIN_PASSWORD_LOCAL });
   if (res.ok){
-    load();
+    await load();
+    refreshDayModalIfOpen();
   } else if (res.error === 'unauthorized'){
     showStatus('Ο κωδικός διαχειριστή δεν είναι πλέον έγκυρος. Συνδεθείτε ξανά.');
     ADMIN_PASSWORD_LOCAL = null;
