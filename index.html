@@ -237,6 +237,7 @@
     padding:24px; width:90%; max-width:340px;
     box-shadow: 0 20px 50px rgba(0,0,0,0.3);
   }
+  #editModalOverlay .modal-box{ max-width:520px; }
   .modal-box h3{ font-family:Calibri, Carlito, sans-serif; margin:0 0 14px; font-size:21.5px; }
   .modal-box select, .modal-box input{ width:100%; margin-bottom:10px; }
   .modal-actions{ display:flex; gap:10px; margin-top:6px; }
@@ -302,6 +303,19 @@
   .btn-ghost:hover{ border-color: var(--accent); color: var(--accent); }
   .btn-danger{ background: var(--danger); border-color: var(--danger); color:#ffffff; }
   .btn-danger:hover{ opacity:0.88; }
+  .btn-edit{
+    background: var(--danger-soft);
+    border-color: var(--danger-soft);
+    color: var(--danger);
+  }
+  .btn-edit:hover{ opacity:0.85; }
+  .btn-maybe{
+    background:#dceaf7;
+    border-color:#dceaf7;
+    color:#2b5f8a;
+  }
+  .btn-maybe:hover{ opacity:0.85; }
+  .btn-maybe.active{ background:#bcdbf3; border-color:#bcdbf3; color:#204a6b; }
 
   .add-toggle{ display:flex; gap:8px; }
 
@@ -481,7 +495,7 @@
 
   @media (max-width: 620px){
     .card{ grid-template-columns: 60px 1fr; }
-    .card-actions{ grid-column: 1 / -1; flex-direction:row; justify-content:flex-end; }
+    .card-actions{ grid-column: 1 / -1; flex-direction:row; flex-wrap:wrap; justify-content:flex-end; }
     .form-grid{ grid-template-columns: 1fr; }
   }
 </style>
@@ -523,6 +537,62 @@
       <button type="button" class="btn-accent" id="nameModalConfirm">Συνέχεια</button>
       <button type="button" class="btn-ghost" id="nameModalCancel">Άκυρο</button>
     </div>
+  </div>
+</div>
+
+<div id="editModalOverlay" class="modal-overlay">
+  <div class="modal-box">
+    <h3>Επεξεργασία εξόρμησης</h3>
+    <form id="editForm">
+      <input type="hidden" id="eId">
+      <div class="form-grid">
+        <div class="full">
+          <label for="eLink">Link πεζοπορίας</label>
+          <input type="text" id="eLink" required>
+        </div>
+        <div>
+          <label for="eDate">Ημερομηνία</label>
+          <input type="date" id="eDate" required>
+        </div>
+        <div>
+          <label for="eDur">Διάρκεια</label>
+          <select id="eDur">
+            <option>Ημερήσιο</option>
+            <option>Διήμερο</option>
+            <option>Τριήμερο</option>
+            <option>Πολυήμερο</option>
+          </select>
+        </div>
+        <div>
+          <label for="eStayIn">Διαμονή</label>
+          <select id="eStayIn">
+            <option value="">—</option>
+            <option>Καταφύγιο / Ξενώνας</option>
+            <option>Κατασκηνωτικό</option>
+          </select>
+        </div>
+        <div>
+          <label for="eWhoSelect">Πρόταση από</label>
+          <select id="eWhoSelect">
+            <option value="Πέτρος">Πέτρος</option>
+            <option value="Κυριάκος">Κυριάκος</option>
+            <option value="Ελένη">Ελένη</option>
+            <option value="Άρτεμις - Ντιάνα">Άρτεμις - Ντιάνα</option>
+            <option value="Σοφία">Σοφία</option>
+            <option value="__other__">Άλλο...</option>
+          </select>
+          <input type="text" id="eWhoOther" placeholder="Όνομα" style="display:none; margin-top:6px;">
+        </div>
+        <div class="full">
+          <label for="eComment">Βουνό / περιγραφή</label>
+          <input type="text" id="eComment">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="submit" class="btn-accent">Αποθήκευση</button>
+        <button type="button" class="btn-ghost" id="editModalCancel">Άκυρο</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -791,8 +861,11 @@ function render(){
   listArea.querySelectorAll('[data-go]').forEach(btn => {
     btn.addEventListener('click', () => onInterest(btn.dataset.go));
   });
-  listArea.querySelectorAll('[data-del]').forEach(btn => {
-    btn.addEventListener('click', () => onDelete(btn.dataset.del));
+  listArea.querySelectorAll('[data-maybe]').forEach(btn => {
+    btn.addEventListener('click', () => onMaybe(btn.dataset.maybe));
+  });
+  listArea.querySelectorAll('[data-edit]').forEach(btn => {
+    btn.addEventListener('click', () => openEditModal(btn.dataset.edit));
   });
 }
 
@@ -809,7 +882,9 @@ function cardHtml(r, today){
   const title = r['Σχόλια'] || 'Εξόρμηση';
   const who = r['Όνομα'] || '';
   const interested = (r['Ενδιαφερόμενοι'] || '').split(',').map(s=>s.trim()).filter(Boolean);
+  const maybe = (r['Σκέφτονται'] || '').split(',').map(s=>s.trim()).filter(Boolean);
   const iAmIn = MY_NAME && interested.includes(MY_NAME);
+  const iAmMaybe = MY_NAME && maybe.includes(MY_NAME);
   const urgentClass = isToday ? 'urgent urgent-today' : (isTomorrow ? 'urgent urgent-tomorrow' : '');
   const urgentBadge = isToday
     ? '<span class="tag urgent-tag">🔴 Σήμερα!</span>'
@@ -830,10 +905,12 @@ function cardHtml(r, today){
           ${who ? `<span class="tag who">πρόταση: ${escapeHtml(who)}</span>` : ''}
         </div>
         <div class="interested">${interested.length ? `<b>${interested.length}</b> θα έρθουν: ${escapeHtml(interested.join(', '))}` : 'Κανείς δεν έχει δηλώσει ενδιαφέρον ακόμα'}</div>
+        ${maybe.length ? `<div class="interested maybe-line">🤔 <b>${maybe.length}</b> το σκέφτονται: ${escapeHtml(maybe.join(', '))}</div>` : ''}
       </div>
       <div class="card-actions">
         <button class="btn-ghost go-btn ${iAmIn ? 'active' : ''}" data-go="${r.ID}">${iAmIn ? '✓ Θα έρθω' : 'Θα έρθω'}</button>
-        <button class="btn-danger" data-del="${r.ID}">Διαγραφή</button>
+        <button class="btn-maybe ${iAmMaybe ? 'active' : ''}" data-maybe="${r.ID}">${iAmMaybe ? '✓ Το σκέφτομαι' : 'Το σκέφτομαι'}</button>
+        <button class="btn-edit" data-edit="${r.ID}">Επεξεργασία</button>
       </div>
     </div>
   `;
@@ -891,17 +968,93 @@ async function onInterest(id){
   if (res.ok) load(); else showStatus('Κάτι πήγε στραβά.');
 }
 
-async function onDelete(id){
-  if (!confirm('Σίγουρα θέλετε να διαγράψετε αυτή την πρόταση;')) return;
-  const res = await apiPost({ action:'delete', id });
-  if (res.ok) load(); else showStatus('Δεν ήταν δυνατή η διαγραφή.');
+async function onMaybe(id){
+  if (!MY_NAME){
+    const name = await askName();
+    if (!name) return;
+    MY_NAME = name;
+  }
+  const res = await apiPost({ action:'maybe', id, name: MY_NAME });
+  if (res.ok){
+    load();
+  } else if (res.error === 'already_interested'){
+    showStatus('Έχετε ήδη δηλώσει "Θα έρθω" σε αυτή την εξόρμηση.');
+  } else {
+    showStatus('Κάτι πήγε στραβά.');
+  }
 }
+
+// ---- Επεξεργασία εξόρμησης ----
+const editModalOverlay = document.getElementById('editModalOverlay');
+const editForm = document.getElementById('editForm');
+const eWhoSelect = document.getElementById('eWhoSelect');
+const eWhoOther = document.getElementById('eWhoOther');
+
+eWhoSelect.addEventListener('change', () => {
+  eWhoOther.style.display = eWhoSelect.value === '__other__' ? 'block' : 'none';
+});
+
+function openEditModal(id){
+  const r = ROWS.find(row => row.ID === id);
+  if (!r) return;
+  document.getElementById('eId').value = r.ID;
+  document.getElementById('eLink').value = r['Πρόταση / Link Πεζοπορίας'] || '';
+  document.getElementById('eDate').value = r['Ημερομηνία'] || '';
+  document.getElementById('eDur').value = r['Διάρκεια'] || 'Ημερήσιο';
+  document.getElementById('eStayIn').value = r['Διαμονή'] || '';
+  document.getElementById('eComment').value = r['Σχόλια'] || '';
+
+  const knownNames = ['Πέτρος','Κυριάκος','Ελένη','Άρτεμις - Ντιάνα','Σοφία'];
+  const currentWho = r['Όνομα'] || '';
+  if (knownNames.includes(currentWho)){
+    eWhoSelect.value = currentWho;
+    eWhoOther.style.display = 'none';
+    eWhoOther.value = '';
+  } else {
+    eWhoSelect.value = '__other__';
+    eWhoOther.style.display = 'block';
+    eWhoOther.value = currentWho;
+  }
+
+  editModalOverlay.classList.add('show');
+}
+document.getElementById('editModalCancel').addEventListener('click', () => {
+  editModalOverlay.classList.remove('show');
+});
+
+editForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const chosenName = eWhoSelect.value === '__other__' ? eWhoOther.value.trim() : eWhoSelect.value;
+  const payload = {
+    action: 'update',
+    id: document.getElementById('eId').value,
+    link: document.getElementById('eLink').value.trim(),
+    date: document.getElementById('eDate').value,
+    duration: document.getElementById('eDur').value,
+    stay: document.getElementById('eStayIn').value,
+    comment: document.getElementById('eComment').value.trim(),
+    name: chosenName,
+  };
+  if (!payload.name){ showStatus('Επιλέξτε ή γράψτε ένα όνομα.'); return; }
+  const res = await apiPost(payload);
+  if (res.ok){
+    editModalOverlay.classList.remove('show');
+    load();
+  } else {
+    showStatus('Δεν ήταν δυνατή η αποθήκευση.');
+  }
+});
 
 // ---- Φόρμα προσθήκης ----
 const addForm = document.getElementById('addForm');
 document.getElementById('btnShowForm').addEventListener('click', () => addForm.classList.toggle('open'));
 document.getElementById('btnCancel').addEventListener('click', () => addForm.classList.remove('open'));
-document.getElementById('btnRefresh').addEventListener('click', load);
+document.getElementById('btnRefresh').addEventListener('click', () => {
+  fMonth.value = '';
+  fDuration.value = '';
+  fStay.value = '';
+  load();
+});
 
 const fWhoSelect = document.getElementById('fWhoSelect');
 const fWhoOther = document.getElementById('fWhoOther');
