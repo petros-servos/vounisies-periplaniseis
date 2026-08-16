@@ -293,7 +293,7 @@
 
   .toolbar{
     display:flex;
-    flex-wrap:nowrap;
+    flex-wrap:wrap;
     gap:10px;
     align-items:center;
     justify-content:space-between;
@@ -310,13 +310,12 @@
     -webkit-backdrop-filter: blur(14px) saturate(160%);
     border-bottom: 1px solid transparent;
     transition: border-color .25s ease, box-shadow .25s ease;
-    overflow-x:auto;
   }
   .toolbar.stuck{
     border-bottom-color: var(--border);
     box-shadow: 0 8px 20px rgba(0,0,0,0.06);
   }
-  .filters{ display:flex; flex-wrap:nowrap; gap:8px; flex-shrink:0; }
+  .filters{ display:flex; flex-wrap:wrap; gap:8px; }
   select, input[type=text], input[type=date], textarea{
     background: var(--surface);
     border:1px solid var(--border);
@@ -643,6 +642,11 @@
   }
 
   /* ---- Εναλλαγή προβολής Λίστα/Ημερολόγιο ---- */
+  .view-toggle-row{
+    display:flex;
+    justify-content:flex-start;
+    margin: -6px 0 20px;
+  }
   .view-toggle{
     display:flex;
     border:1px solid var(--border);
@@ -961,10 +965,13 @@
     <div class="add-toggle">
       <button class="btn-accent" id="btnShowForm">+ Νέα πρόταση</button>
       <button class="btn-ghost" id="btnRefresh" title="Ανανέωση">↻</button>
-      <div class="view-toggle">
-        <button class="view-btn active" id="viewListBtn" title="Προβολή λίστας" type="button">☰</button>
-        <button class="view-btn" id="viewGridBtn" title="Προβολή ημερολογίου" type="button">▦</button>
-      </div>
+    </div>
+  </div>
+
+  <div class="view-toggle-row">
+    <div class="view-toggle">
+      <button class="view-btn active" id="viewListBtn" title="Προβολή λίστας" type="button">☰</button>
+      <button class="view-btn" id="viewGridBtn" title="Προβολή ημερολογίου" type="button">▦</button>
     </div>
   </div>
 
