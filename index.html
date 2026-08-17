@@ -412,6 +412,26 @@
   .status-banner.show{ display:block; }
   .status-banner code{ background:#00000030; padding:1px 5px; border-radius:4px; }
 
+  .no-date-check-label{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-family:Calibri, Carlito, sans-serif;
+    font-size:15px;
+    font-weight:600;
+    color: var(--text);
+    cursor:pointer;
+    padding:8px 10px;
+    border-radius:8px;
+    background: color-mix(in srgb, var(--moss) 10%, var(--surface-2));
+    border:1px dashed color-mix(in srgb, var(--moss) 45%, transparent);
+  }
+  .no-date-check-label input[type="checkbox"]{
+    width:16px; height:16px;
+    accent-color: var(--moss);
+    cursor:pointer;
+  }
+
   .resource-tabs{
     display:flex;
     gap:10px;
@@ -525,6 +545,34 @@
     opacity:1;
   }
   .card.past{ opacity:0.55; }
+  .card.no-date{
+    background: #f5efe1;
+    border-color: #e6d9bd;
+  }
+  html[data-theme="dark"] .card.no-date{
+    background: #2b2418;
+    border-color: #4a3f28;
+  }
+  .card.no-date::before{
+    background: var(--moss);
+  }
+  .card.no-date:hover, .card.no-date.tapped{
+    box-shadow: var(--card-shadow-hover), 0 0 24px color-mix(in srgb, var(--moss) 30%, transparent);
+  }
+  .card.no-date .date-block{
+    background: color-mix(in srgb, var(--moss) 14%, var(--surface-2));
+  }
+  .card.no-date .date-block .day{
+    color: var(--moss);
+    text-shadow: 0 0 10px color-mix(in srgb, var(--moss) 50%, transparent);
+    font-size:22px;
+  }
+  .tag.no-date-tag{
+    background: color-mix(in srgb, var(--moss) 18%, transparent);
+    color: var(--moss);
+    font-weight:700;
+    border:1px solid color-mix(in srgb, var(--moss) 40%, transparent);
+  }
   .card.urgent{
     border-color: var(--danger);
     background: var(--danger-soft);
@@ -915,7 +963,13 @@
           <label for="fLink">Link πεζοπορίας</label>
           <input type="text" id="fLink" placeholder="https://..." required>
         </div>
-        <div>
+        <div class="full">
+          <label class="no-date-check-label" for="fNoDate">
+            <input type="checkbox" id="fNoDate">
+            🌱 Πρόταση Summit Squad — χωρίς ημερομηνία ακόμα
+          </label>
+        </div>
+        <div id="fDateWrap">
           <label for="fDate">Ημερομηνία</label>
           <input type="date" id="fDate" required>
         </div>
@@ -1053,7 +1107,13 @@
           <label for="eLink">Link πεζοπορίας</label>
           <input type="text" id="eLink" required>
         </div>
-        <div>
+        <div class="full">
+          <label class="no-date-check-label" for="eNoDate">
+            <input type="checkbox" id="eNoDate">
+            🌱 Πρόταση Summit Squad — χωρίς ημερομηνία ακόμα
+          </label>
+        </div>
+        <div id="eDateWrap">
           <label for="eDate">Ημερομηνία</label>
           <input type="date" id="eDate" required>
         </div>
@@ -1332,8 +1392,10 @@ function render(){
   let rows = [...ROWS];
 
   if (fMonth.value){
+    // Οι προτάσεις Summit Squad χωρίς ημερομηνία παραμένουν πάντα ορατές,
+    // πάνω-πάνω, ανεξάρτητα από το φίλτρο μήνα -- δεν έχουν μήνα να ταιριάξουν.
     rows = rows.filter(r => {
-      const d = r['Ημερομηνία']; if(!d) return false;
+      const d = r['Ημερομηνία']; if(!d) return true;
       const dt = new Date(d);
       const key = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0');
       return key === fMonth.value;
@@ -1385,7 +1447,7 @@ function render(){
     const key = (dt && !isNaN(dt)) ? (dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0')) : 'χωρίς-ημερομηνία';
     if (!(key in groupIndex)){
       groupIndex[key] = groups.length;
-      const label = (dt && !isNaN(dt)) ? (MONTHS_EL[dt.getMonth()] + ' ' + dt.getFullYear()) : 'Χωρίς ημερομηνία';
+      const label = (dt && !isNaN(dt)) ? (MONTHS_EL[dt.getMonth()] + ' ' + dt.getFullYear()) : '🌱 Προτάσεις Summit Squad — χωρίς ημερομηνία ακόμα';
       groups.push({ key, label, items: [] });
     }
     groups[groupIndex[key]].items.push(r);
@@ -1534,7 +1596,12 @@ document.getElementById('dayModalClose').addEventListener('click', () => {
 document.getElementById('dayModalAddNew').addEventListener('click', () => {
   const dateForForm = currentDayModalDate;
   dayModalOverlay.classList.remove('show');
-  if (dateForForm) document.getElementById('fDate').value = dateForForm;
+  if (dateForForm){
+    fNoDate.checked = false;
+    fDateWrap.style.display = '';
+    fDate.required = true;
+    fDate.value = dateForForm;
+  }
   addModalOverlay.classList.add('show');
 });
 
@@ -1557,7 +1624,10 @@ function onDayClick(dateKey){
 
   if (events.length === 0){
     // Καμία εξόρμηση αυτή τη μέρα -- ανοίγει η φόρμα «Νέα πρόταση» με προσυμπληρωμένη ημερομηνία
-    document.getElementById('fDate').value = dateKey;
+    fNoDate.checked = false;
+    fDateWrap.style.display = '';
+    fDate.required = true;
+    fDate.value = dateKey;
     addModalOverlay.classList.add('show');
     return;
   }
@@ -1608,7 +1678,7 @@ function daysForRow(r){
 }
 
 function dateBlockParts(dt, days){
-  if (!dt) return { day:'—', mon:'', small:false, range:false };
+  if (!dt) return { day:'🌱', mon:'Summit Squad', small:true, range:false };
   if (!days || days <= 1) return { day: dt.getDate(), mon: MONTHS_EL[dt.getMonth()], small:false, range:false };
   const end = new Date(dt);
   end.setDate(end.getDate() + (days - 1));
@@ -1649,8 +1719,11 @@ function cardHtml(r, today){
   else if (isTomorrow) urgentBadge = '<span class="tag urgent-tag">🔴 Αύριο</span>';
   else if (isUrgentWeek) urgentBadge = `<span class="tag urgent-tag">🔴 σε ${daysUntil} μέρες</span>`;
 
+  const noDateClass = dt ? '' : 'no-date';
+  const noDateBadge = dt ? '' : '<span class="tag no-date-tag">🌱 Πρόταση Summit Squad</span>';
+
   return `
-    <div class="card ${isPast ? 'past' : ''} ${urgentClass}" id="exp-${r.ID}">
+    <div class="card ${isPast ? 'past' : ''} ${urgentClass} ${noDateClass}" id="exp-${r.ID}">
       <div class="date-block ${dateParts.small ? 'compact' : ''} ${dateParts.range ? 'range' : ''}">
         <div class="day">${dateParts.day}</div>
         <div class="mon">${dateParts.mon}</div>
@@ -1659,6 +1732,7 @@ function cardHtml(r, today){
         <p class="title">👉 <a href="${escapeAttr(link)}" target="_blank" rel="noopener">${escapeHtml(title)}</a></p>
         <div class="meta">
           ${urgentBadge}
+          ${noDateBadge}
           ${r['Διάρκεια'] ? `<span class="tag duration">${escapeHtml(r['Διάρκεια'])}</span>` : ''}
           ${r['Διαμονή'] ? `<span class="tag stay">${escapeHtml(r['Διαμονή'])}</span>` : ''}
           ${who ? `<span class="tag who">πρόταση: ${escapeHtml(who)}</span>` : ''}
@@ -1768,6 +1842,17 @@ eDur.addEventListener('change', () => {
   eDays.style.display = eDur.value === 'Πολυήμερο' ? 'block' : 'none';
 });
 
+// ---- "Πρόταση Summit Squad" (χωρίς ημερομηνία ακόμα) -- φόρμα επεξεργασίας ----
+const eNoDate = document.getElementById('eNoDate');
+const eDate = document.getElementById('eDate');
+const eDateWrap = document.getElementById('eDateWrap');
+eNoDate.addEventListener('change', () => {
+  const noDate = eNoDate.checked;
+  eDateWrap.style.display = noDate ? 'none' : '';
+  eDate.required = !noDate;
+  if (noDate) eDate.value = '';
+});
+
 // Σταθερός αριθμός ημερών ανά τύπο διάρκειας. Για "Πολυήμερο" ο αριθμός
 // έρχεται από το ξεχωριστό πεδίο "Πόσες ημέρες".
 const DURATION_DAYS = { 'Ημερήσιο': 1, 'Διήμερο': 2, 'Τριήμερο': 3 };
@@ -1788,6 +1873,10 @@ function openEditModal(id){
   document.getElementById('eId').value = r.ID;
   document.getElementById('eLink').value = r['Πρόταση / Link Πεζοπορίας'] || '';
   document.getElementById('eDate').value = r['Ημερομηνία'] || '';
+  const hasNoDate = !r['Ημερομηνία'];
+  eNoDate.checked = hasNoDate;
+  eDateWrap.style.display = hasNoDate ? 'none' : '';
+  eDate.required = !hasNoDate;
   eDur.value = r['Διάρκεια'] || 'Ημερήσιο';
   document.getElementById('eStayIn').value = r['Διαμονή'] || '';
   document.getElementById('eComment').value = r['Σχόλια'] || '';
@@ -1824,7 +1913,7 @@ editForm.addEventListener('submit', async (e) => {
     action: 'update',
     id: document.getElementById('eId').value,
     link: document.getElementById('eLink').value.trim(),
-    date: document.getElementById('eDate').value,
+    date: eNoDate.checked ? '' : document.getElementById('eDate').value,
     duration: eDur.value,
     days: resolveDaysFrom(eDur.value, eDays),
     stay: document.getElementById('eStayIn').value,
@@ -1832,6 +1921,7 @@ editForm.addEventListener('submit', async (e) => {
     name: chosenName,
   };
   if (!payload.name){ showStatus('Επιλέξτε ή γράψτε ένα όνομα.'); return; }
+  if (!eNoDate.checked && !payload.date){ showStatus('Συμπληρώστε ημερομηνία ή επιλέξτε "Πρόταση Summit Squad".'); return; }
   const res = await apiPost(payload);
   if (res.ok){
     editModalOverlay.classList.remove('show');
@@ -1866,13 +1956,24 @@ fDur.addEventListener('change', () => {
   fDays.style.display = fDur.value === 'Πολυήμερο' ? 'block' : 'none';
 });
 
+// ---- "Πρόταση Summit Squad" (χωρίς ημερομηνία ακόμα) -- φόρμα προσθήκης ----
+const fNoDate = document.getElementById('fNoDate');
+const fDate = document.getElementById('fDate');
+const fDateWrap = document.getElementById('fDateWrap');
+fNoDate.addEventListener('change', () => {
+  const noDate = fNoDate.checked;
+  fDateWrap.style.display = noDate ? 'none' : '';
+  fDate.required = !noDate;
+  if (noDate) fDate.value = '';
+});
+
 addForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const chosenName = fWhoSelect.value === '__other__' ? fWhoOther.value.trim() : fWhoSelect.value;
   const payload = {
     action: 'add',
     link: document.getElementById('fLink').value.trim(),
-    date: document.getElementById('fDate').value,
+    date: fNoDate.checked ? '' : document.getElementById('fDate').value,
     duration: fDur.value,
     days: resolveDaysFrom(fDur.value, fDays),
     stay: document.getElementById('fStayIn').value,
@@ -1880,6 +1981,7 @@ addForm.addEventListener('submit', async (e) => {
     name: chosenName,
   };
   if (!payload.name){ showStatus('Επιλέξτε ή γράψτε ένα όνομα.'); return; }
+  if (!fNoDate.checked && !payload.date){ showStatus('Συμπληρώστε ημερομηνία ή επιλέξτε "Πρόταση Summit Squad".'); return; }
   MY_NAME = payload.name;
   const idsBefore = KNOWN_IDS ? new Set(KNOWN_IDS) : new Set(ROWS.map(r => r.ID));
   const res = await apiPost(payload);
@@ -1887,6 +1989,9 @@ addForm.addEventListener('submit', async (e) => {
     addForm.reset();
     fWhoOther.style.display = 'none';
     fDays.style.display = 'none';
+    fNoDate.checked = false;
+    fDateWrap.style.display = '';
+    fDate.required = true;
     addModalOverlay.classList.remove('show');
     await load();
     // Ειδοποίηση και για τη δική μας προσθήκη, ώστε να επιβεβαιώνεται ότι όλα δουλεύουν
