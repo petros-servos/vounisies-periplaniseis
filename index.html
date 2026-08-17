@@ -554,10 +554,13 @@
     border-color: #4a3f28;
   }
   .card.no-date::before{
-    background: var(--moss);
+    background: color-mix(in srgb, var(--moss) 28%, white);
+  }
+  html[data-theme="dark"] .card.no-date::before{
+    background: color-mix(in srgb, var(--moss) 28%, var(--surface));
   }
   .card.no-date:hover, .card.no-date.tapped{
-    box-shadow: var(--card-shadow-hover), 0 0 24px color-mix(in srgb, var(--moss) 30%, transparent);
+    box-shadow: var(--card-shadow-hover), 0 0 18px color-mix(in srgb, var(--moss) 16%, transparent);
   }
   .card.no-date .date-block{
     background: color-mix(in srgb, var(--moss) 14%, var(--surface-2));
@@ -966,7 +969,7 @@
         <div class="full">
           <label class="no-date-check-label" for="fNoDate">
             <input type="checkbox" id="fNoDate">
-            🥾 Πρόταση Summit Squad — χωρίς ημερομηνία ακόμα
+            🎒 Πρόταση Summit Squad — χωρίς ημερομηνία ακόμα
           </label>
         </div>
         <div id="fDateWrap">
@@ -1110,7 +1113,7 @@
         <div class="full">
           <label class="no-date-check-label" for="eNoDate">
             <input type="checkbox" id="eNoDate">
-            🥾 Πρόταση Summit Squad — χωρίς ημερομηνία ακόμα
+            🎒 Πρόταση Summit Squad — χωρίς ημερομηνία ακόμα
           </label>
         </div>
         <div id="eDateWrap">
@@ -1447,7 +1450,7 @@ function render(){
     const key = (dt && !isNaN(dt)) ? (dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0')) : 'χωρίς-ημερομηνία';
     if (!(key in groupIndex)){
       groupIndex[key] = groups.length;
-      const label = (dt && !isNaN(dt)) ? (MONTHS_EL[dt.getMonth()] + ' ' + dt.getFullYear()) : '🥾 Προτάσεις Summit Squad — χωρίς ημερομηνία ακόμα';
+      const label = (dt && !isNaN(dt)) ? (MONTHS_EL[dt.getMonth()] + ' ' + dt.getFullYear()) : '🎒 Προτάσεις Summit Squad — χωρίς ημερομηνία ακόμα';
       groups.push({ key, label, items: [] });
     }
     groups[groupIndex[key]].items.push(r);
@@ -1678,7 +1681,7 @@ function daysForRow(r){
 }
 
 function dateBlockParts(dt, days){
-  if (!dt) return { day:'🥾', mon:'Summit Squad', small:true, range:false };
+  if (!dt) return { day:'🎒', mon:'Summit Squad', small:true, range:false };
   if (!days || days <= 1) return { day: dt.getDate(), mon: MONTHS_EL[dt.getMonth()], small:false, range:false };
   const end = new Date(dt);
   end.setDate(end.getDate() + (days - 1));
@@ -1720,7 +1723,7 @@ function cardHtml(r, today){
   else if (isUrgentWeek) urgentBadge = `<span class="tag urgent-tag">🔴 σε ${daysUntil} μέρες</span>`;
 
   const noDateClass = dt ? '' : 'no-date';
-  const noDateBadge = dt ? '' : '<span class="tag no-date-tag">🥾 Πρόταση Summit Squad</span>';
+  const noDateBadge = dt ? '' : '<span class="tag no-date-tag">🎒 Πρόταση Summit Squad</span>';
 
   return `
     <div class="card ${isPast ? 'past' : ''} ${urgentClass} ${noDateClass}" id="exp-${r.ID}">
