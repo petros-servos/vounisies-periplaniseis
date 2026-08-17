@@ -420,6 +420,20 @@
     border-radius: var(--radius);
   }
 
+  .back-to-top{
+    text-align:center;
+    padding: 18px 0 6px;
+  }
+  .back-to-top a{
+    color: var(--text-dim);
+    text-decoration:none;
+    font-size:14.5px;
+    font-weight:600;
+    opacity:0.75;
+    transition: opacity .2s ease;
+  }
+  .back-to-top a:hover{ opacity:1; text-decoration:underline; }
+
   .list{ display:flex; flex-direction:column; gap:12px; }
 
   @keyframes cardEnter{
@@ -720,6 +734,8 @@
   .cal-day.empty:hover{ transform:none; }
   .cal-day.today{ border-color: var(--accent); border-width:2px; font-weight:700; }
   .cal-day.past{ opacity:0.4; }
+  .cal-day.has-event{ background:#f3e9d8; border-color:#e3d2ac; }
+  html[data-theme="dark"] .cal-day.has-event{ background:#3a3324; border-color:#5c4f34; }
   .cal-day .cal-tab{
     position:absolute;
     bottom:-7px;
@@ -920,6 +936,7 @@
     <h3 id="dayModalTitle">Εξορμήσεις</h3>
     <div id="dayModalList" class="list"></div>
     <div class="modal-actions">
+      <button type="button" class="btn-accent" id="dayModalAddNew">+ Νέα πρόταση αυτή τη μέρα</button>
       <button type="button" class="btn-ghost" id="dayModalClose">Κλείσιμο</button>
     </div>
   </div>
@@ -1163,8 +1180,9 @@ function render(){
       </div>
     ` : '';
 
-    listArea.innerHTML = section('🥾 Θα πάω', going) + section('💭 Το σκέφτομαι', thinking);
+    listArea.innerHTML = section('🥾 Θα πάω', going) + section('💭 Το σκέφτομαι', thinking) + backToTopHtml();
     wireCardEvents();
+    wireBackToTop();
     return;
   }
 
@@ -1193,9 +1211,23 @@ function render(){
       <div class="month-group-header">${escapeHtml(g.label)}</div>
       <div class="list">${g.items.map(r => cardHtml(r, today)).join('')}</div>
     </div>
-  `).join('');
+  `).join('') + backToTopHtml();
 
   wireCardEvents();
+  wireBackToTop();
+}
+
+function backToTopHtml(){
+  return `<div class="back-to-top"><a href="#" id="backToTopLink">↑ Επιστροφή στην αρχή</a></div>`;
+}
+function wireBackToTop(){
+  const link = document.getElementById('backToTopLink');
+  if (link){
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
 }
 
 function wireCardEvents(container){
@@ -1230,8 +1262,6 @@ function setView(view){
   viewGridBtn.classList.toggle('active', view === 'grid');
   listArea.style.display = view === 'list' ? '' : 'none';
   calendarArea.style.display = view === 'grid' ? '' : 'none';
-  // Το φίλτρο μήνα δεν έχει νόημα στο ημερολόγιο -- εκεί πλοηγείσαι με τα βελάκια
-  fMonth.style.display = view === 'grid' ? 'none' : '';
   refreshView();
 }
 viewListBtn.addEventListener('click', () => setView('list'));
@@ -1290,7 +1320,7 @@ function renderCalendar(){
       ? `<div class="cal-tab ${isUrgent ? 'urgent' : ''}">${events.length > 1 ? events.length : ''}</div>`
       : '';
     const key = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-    html += `<div class="cal-day ${isToday?'today':''} ${isPast?'past':''}" data-date="${key}">
+    html += `<div class="cal-day ${isToday?'today':''} ${isPast?'past':''} ${events.length?'has-event':''}" data-date="${key}">
       <div>${day}</div>${tab}
     </div>`;
   }
@@ -1315,6 +1345,12 @@ let currentDayModalDate = null;
 document.getElementById('dayModalClose').addEventListener('click', () => {
   dayModalOverlay.classList.remove('show');
   currentDayModalDate = null;
+});
+document.getElementById('dayModalAddNew').addEventListener('click', () => {
+  const dateForForm = currentDayModalDate;
+  dayModalOverlay.classList.remove('show');
+  if (dateForForm) document.getElementById('fDate').value = dateForForm;
+  addModalOverlay.classList.add('show');
 });
 
 function renderDayModalContent(target){
@@ -1685,7 +1721,17 @@ function updateFilterStyles(){
   });
   fRemember.classList.toggle('remember-active', fRemember.value !== '');
 }
-[fMonth, fDuration, fStay, fRemember].forEach(sel => sel.addEventListener('change', () => {
+fMonth.addEventListener('change', () => {
+  updateFilterStyles();
+  if (currentView === 'grid' && fMonth.value){
+    const [y, m] = fMonth.value.split('-').map(Number);
+    calDate = new Date(y, m - 1, 1);
+    renderCalendar();
+  } else {
+    refreshView();
+  }
+});
+[fDuration, fStay, fRemember].forEach(sel => sel.addEventListener('change', () => {
   updateFilterStyles();
   refreshView();
 }));
