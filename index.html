@@ -739,6 +739,8 @@
   .view-toggle-row{
     display:flex;
     justify-content:flex-start;
+    align-items:center;
+    gap:14px;
     margin: -6px 0 20px;
   }
   .view-toggle{
@@ -758,6 +760,84 @@
   }
   .view-btn + .view-btn{ border-left:1px solid var(--border); }
   .view-btn.active{ background: var(--accent); color:#1c1204; }
+
+  .ss-filter-wrap{ display:flex; align-items:center; gap:8px; }
+  .ss-filter-btn{
+    display:flex; align-items:center; gap:7px;
+    padding:9px 15px;
+    border-radius:9px;
+    border:1px solid color-mix(in srgb, var(--moss) 35%, transparent);
+    background: color-mix(in srgb, var(--moss) 10%, var(--surface));
+    color: var(--text);
+    font-family:Calibri, Carlito, sans-serif;
+    font-weight:600; font-size:14.7px;
+    cursor:pointer;
+    transition: background .15s ease, border-color .15s ease, transform .1s ease;
+  }
+  .ss-filter-btn:hover{ transform: translateY(-1px); }
+  .ss-filter-btn.active{
+    background: color-mix(in srgb, var(--moss) 26%, var(--surface));
+    border-color: var(--moss);
+    color: var(--moss);
+  }
+  html[data-theme="dark"] .ss-filter-btn{
+    background: color-mix(in srgb, var(--moss) 16%, var(--surface));
+  }
+  html[data-theme="dark"] .ss-filter-btn.active{
+    background: color-mix(in srgb, var(--moss) 32%, var(--surface));
+  }
+
+  .ss-bell-wrap{ position:relative; }
+  .ss-notif-bell{
+    width:34px; height:34px; border-radius:50%;
+    background: color-mix(in srgb, var(--moss) 10%, var(--surface));
+    border:1px solid color-mix(in srgb, var(--moss) 35%, transparent);
+    font-size:15.5px; display:flex; align-items:center; justify-content:center;
+    position:relative; padding:0; cursor:pointer;
+  }
+  .ss-notif-badge{
+    position:absolute; top:-4px; right:-4px;
+    background: var(--moss); color:#fff;
+    font-family:Calibri, Carlito, sans-serif;
+    font-size:11px; font-weight:700;
+    min-width:16px; height:16px; border-radius:8px;
+    display:flex; align-items:center; justify-content:center;
+    padding:0 3px;
+    display:none;
+  }
+  .ss-notif-badge.show{ display:flex; }
+  .ss-notif-panel{
+    display:none;
+    position:absolute; top:42px; left:0;
+    width:280px; max-height:340px; overflow-y:auto;
+    background: var(--surface);
+    background: color-mix(in srgb, var(--surface) 82%, transparent);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border:1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 10px 30px rgba(34,53,38,0.22);
+    z-index: 50;
+  }
+  .ss-notif-panel.open{ display:block; }
+  .ss-notif-panel-header{
+    font-family:Calibri, Carlito, sans-serif; font-weight:600; font-size:15.3px;
+    padding:12px 14px; border-bottom:1px solid var(--border);
+  }
+  .ss-notif-list{ padding:6px; }
+  .ss-notif-empty{ padding:14px; text-align:center; color: var(--text-dim); font-size:13.7px; }
+  .ss-notif-item{
+    display:block; padding:9px 9px; border-radius:9px;
+    text-decoration:none; color: var(--text);
+    font-size:13.7px; line-height:1.4;
+  }
+  .ss-notif-item:hover{ background: var(--surface-2); }
+  .ss-notif-item b{ color: var(--moss); display:block; font-size:14.2px; margin-bottom:2px; }
+
+  @media (max-width: 620px){
+    .view-toggle-row{ flex-wrap:wrap; gap:10px; }
+    .ss-filter-btn{ font-size:13.5px; padding:8px 12px; }
+  }
 
   /* ---- Ημερολόγιο ---- */
   .cal-header{
@@ -1238,6 +1318,21 @@
       <button class="view-btn active" id="viewListBtn" title="Προβολή λίστας" type="button">☰</button>
       <button class="view-btn" id="viewGridBtn" title="Προβολή ημερολογίου" type="button">▦</button>
     </div>
+    <div class="ss-filter-wrap">
+      <button class="ss-filter-btn" id="ssFilterBtn" type="button">🎒 Εξορμήσεις Summit Squad</button>
+      <div class="ss-bell-wrap" id="ssBellWrap">
+        <button id="ssNotifBell" class="ss-notif-bell" title="Ειδοποιήσεις Summit Squad" type="button">
+          🔔
+          <span id="ssNotifBadge" class="ss-notif-badge">0</span>
+        </button>
+        <div id="ssNotifPanel" class="ss-notif-panel">
+          <div class="ss-notif-panel-header">Νέες προτάσεις Summit Squad</div>
+          <div id="ssNotifList" class="ss-notif-list">
+            <div class="ss-notif-empty">Καμία νέα ειδοποίηση</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div id="listArea">
@@ -1356,6 +1451,12 @@ async function load(){
     } else {
       syncKnownIds();
     }
+    if (!ssNotifsInitialized){
+      ssNotifsInitialized = true;
+      initSSNotificationsFromPersisted_();
+    } else {
+      syncKnownSSIds();
+    }
     buildFilterOptions();
     updateFilterStyles();
     refreshView();
@@ -1406,6 +1507,7 @@ function render(){
   }
   if (fDuration.value) rows = rows.filter(r => r['Διάρκεια'] === fDuration.value);
   if (fStay.value) rows = rows.filter(r => r['Διαμονή'] === fStay.value);
+  if (ssFilterActive) rows = rows.filter(r => !r['Ημερομηνία']);
 
   rows.sort((a,b) => new Date(a['Ημερομηνία']||0) - new Date(b['Ημερομηνία']||0));
 
@@ -1515,7 +1617,28 @@ function setView(view){
   refreshView();
 }
 viewListBtn.addEventListener('click', () => setView('list'));
-viewGridBtn.addEventListener('click', () => setView('grid'));
+viewGridBtn.addEventListener('click', () => {
+  // Το φίλτρο Summit Squad δείχνει μόνο dateless προτάσεις, που δεν
+  // μπορούν να εμφανιστούν σε ημερολόγιο -- το απενεργοποιούμε.
+  if (ssFilterActive){
+    ssFilterActive = false;
+    ssFilterBtn.classList.remove('active');
+  }
+  setView('grid');
+});
+
+// ---- Φίλτρο "Εξορμήσεις Summit Squad" ----
+let ssFilterActive = false;
+const ssFilterBtn = document.getElementById('ssFilterBtn');
+ssFilterBtn.addEventListener('click', () => {
+  ssFilterActive = !ssFilterActive;
+  ssFilterBtn.classList.toggle('active', ssFilterActive);
+  if (ssFilterActive && currentView === 'grid'){
+    setView('list'); // η προβολή ημερολογίου δεν μπορεί να δείξει dateless προτάσεις
+  } else {
+    refreshView();
+  }
+});
 
 // Ίδια φίλτρα (Διάρκεια/Διαμονή/Για να θυμάμαι) με τη λίστα, χωρίς το φίλτρο μήνα
 function getCalendarFilteredRows(){
@@ -2123,6 +2246,7 @@ async function pollForUpdates(){
     if (KNOWN_IDS === null){
       ROWS = data;
       syncKnownIds();
+      syncKnownSSIds();
       return;
     }
     const fresh = data.filter(r => !KNOWN_IDS.has(r.ID));
@@ -2130,11 +2254,19 @@ async function pollForUpdates(){
       fresh.forEach(r => {
         NOTIFS.unshift({ id: r.ID, title: r['Σχόλια'] || 'Νέα εξόρμηση', who: r['Όνομα'] || '' });
       });
+      const freshSS = data.filter(r => isSSRow_(r) && KNOWN_SS_IDS && !KNOWN_SS_IDS.has(r.ID));
+      if (freshSS.length){
+        freshSS.forEach(r => {
+          SS_NOTIFS.unshift({ id: r.ID, title: r['Σχόλια'] || 'Νέα πρόταση Summit Squad', who: r['Όνομα'] || '' });
+        });
+      }
       ROWS = data;
       syncKnownIds();
+      syncKnownSSIds();
       buildFilterOptions();
       refreshView();
       renderNotifs();
+      if (freshSS.length) renderSSNotifs();
     }
   } catch(err){ /* σιωπηλή αποτυχία στο background poll */ }
 }
@@ -2145,6 +2277,96 @@ document.getElementById('notifBell').addEventListener('click', () => {
 document.addEventListener('click', (e) => {
   const wrap = document.getElementById('notifWrap');
   if (!wrap.contains(e.target)) document.getElementById('notifPanel').classList.remove('open');
+});
+
+// ---- Ξεχωριστές ειδοποιήσεις για νέες προτάσεις Summit Squad (χωρίς ημερομηνία) ----
+// Ανεξάρτητο σύστημα από τις γενικές ειδοποιήσεις παραπάνω -- δικό του
+// σύνολο γνωστών ID, δικό του localStorage κλειδί, δικό του καμπανάκι.
+let KNOWN_SS_IDS = null;
+let SS_NOTIFS = [];
+let ssNotifsInitialized = false;
+const KNOWN_SS_IDS_STORAGE_KEY = 'vp_known_ss_ids_v1';
+const isSSRow_ = (r) => !r['Ημερομηνία'];
+
+function loadPersistedSSIds_(){
+  try {
+    const raw = localStorage.getItem(KNOWN_SS_IDS_STORAGE_KEY);
+    if (!raw) return null;
+    return new Set(JSON.parse(raw));
+  } catch(e){ return null; }
+}
+function persistSSIds_(){
+  try {
+    localStorage.setItem(KNOWN_SS_IDS_STORAGE_KEY, JSON.stringify([...KNOWN_SS_IDS]));
+  } catch(e){ /* αγνόησε -- η εφαρμογή δουλεύει κανονικά χωρίς persistence */ }
+}
+function syncKnownSSIds(){
+  KNOWN_SS_IDS = new Set(ROWS.filter(isSSRow_).map(r => r.ID));
+  persistSSIds_();
+}
+function initSSNotificationsFromPersisted_(){
+  const persisted = loadPersistedSSIds_();
+  const currentIds = new Set(ROWS.filter(isSSRow_).map(r => r.ID));
+
+  if (persisted !== null){
+    const freshRows = ROWS.filter(r => isSSRow_(r) && !persisted.has(r.ID));
+    if (freshRows.length){
+      freshRows.forEach(r => {
+        SS_NOTIFS.unshift({ id: r.ID, title: r['Σχόλια'] || 'Νέα πρόταση Summit Squad', who: r['Όνομα'] || '' });
+      });
+      renderSSNotifs();
+    }
+  }
+  KNOWN_SS_IDS = currentIds;
+  persistSSIds_();
+}
+function renderSSNotifs(){
+  const badge = document.getElementById('ssNotifBadge');
+  const list = document.getElementById('ssNotifList');
+  if (SS_NOTIFS.length === 0){
+    badge.classList.remove('show');
+    list.innerHTML = '<div class="ss-notif-empty">Καμία νέα ειδοποίηση</div>';
+    return;
+  }
+  badge.textContent = SS_NOTIFS.length;
+  badge.classList.add('show');
+  list.innerHTML = SS_NOTIFS.map(n => `
+    <a href="#exp-${n.id}" class="ss-notif-item" data-ss-notif-id="${n.id}">
+      <b>${escapeHtml(n.title)}</b>${escapeHtml(n.who ? ('πρόταση: ' + n.who) : '')}
+    </a>
+  `).join('');
+  list.querySelectorAll('.ss-notif-item').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      goToSSNotif(el.dataset.ssNotifId);
+    });
+  });
+}
+function goToSSNotif(id){
+  SS_NOTIFS = SS_NOTIFS.filter(n => n.id !== id);
+  renderSSNotifs();
+  document.getElementById('ssNotifPanel').classList.remove('open');
+  // Δείξε τα Summit Squad αποτελέσματα ώστε η κάρτα να υπάρχει στη σελίδα
+  if (!ssFilterActive){
+    ssFilterActive = true;
+    ssFilterBtn.classList.add('active');
+  }
+  if (currentView === 'grid') setView('list'); else refreshView();
+  setTimeout(() => {
+    const card = document.getElementById('exp-' + id);
+    if (card){
+      card.scrollIntoView({ behavior:'smooth', block:'center' });
+      card.classList.add('just-added');
+      setTimeout(() => card.classList.remove('just-added'), 2300);
+    }
+  }, 30);
+}
+document.getElementById('ssNotifBell').addEventListener('click', () => {
+  document.getElementById('ssNotifPanel').classList.toggle('open');
+});
+document.addEventListener('click', (e) => {
+  const wrap = document.getElementById('ssBellWrap');
+  if (wrap && !wrap.contains(e.target)) document.getElementById('ssNotifPanel').classList.remove('open');
 });
 
 
