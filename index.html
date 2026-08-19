@@ -257,9 +257,16 @@
     display:block; padding:10px 10px; border-radius:9px;
     text-decoration:none; color: var(--text);
     font-size:14.7px; line-height:1.4;
+    position:relative;
   }
   .notif-item:hover{ background: var(--surface-2); }
   .notif-item b{ color: var(--navy); display:block; font-size:15.3px; margin-bottom:2px; }
+  .notif-item.unread{ background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .notif-item.unread::before{
+    content:''; position:absolute; top:14px; left:-2px;
+    width:7px; height:7px; border-radius:50%; background: var(--danger);
+  }
+  .notif-ts{ display:block; margin-top:4px; font-size:12.2px; color: var(--text-dim); }
 
   /* ---- Name modal ---- */
   .modal-overlay{
@@ -808,8 +815,8 @@
   .ss-notif-badge.show{ display:flex; }
   .ss-notif-panel{
     display:none;
-    position:absolute; top:42px; left:0;
-    width:280px; max-height:340px; overflow-y:auto;
+    position:absolute; top:42px; right:0;
+    width:min(88vw, 280px); max-height:340px; overflow-y:auto;
     background: var(--surface);
     background: color-mix(in srgb, var(--surface) 82%, transparent);
     backdrop-filter: blur(16px);
@@ -830,9 +837,16 @@
     display:block; padding:9px 9px; border-radius:9px;
     text-decoration:none; color: var(--text);
     font-size:13.7px; line-height:1.4;
+    position:relative;
   }
   .ss-notif-item:hover{ background: var(--surface-2); }
   .ss-notif-item b{ color: var(--moss); display:block; font-size:14.2px; margin-bottom:2px; }
+  .ss-notif-item.unread{ background: color-mix(in srgb, var(--moss) 12%, transparent); }
+  .ss-notif-item.unread::before{
+    content:''; position:absolute; top:13px; left:-2px;
+    width:7px; height:7px; border-radius:50%; background: var(--moss);
+  }
+  .ss-notif-ts{ display:block; margin-top:4px; font-size:11.5px; color: var(--text-dim); }
 
   @media (max-width: 620px){
     .view-toggle-row{ flex-wrap:wrap; gap:10px; }
@@ -2124,13 +2138,14 @@ addForm.addEventListener('submit', async (e) => {
     // Οι προτάσεις Summit Squad (χωρίς ημερομηνία) πάνε στο δικό τους καμπανάκι,
     // όλες οι υπόλοιπες στο γενικό.
     const justAdded = ROWS.filter(r => !idsBefore.has(r.ID));
+    const addedNow = new Date().toISOString();
     let notifChanged = false, ssNotifChanged = false;
     justAdded.forEach(r => {
       if (isSSRow_(r)){
-        SS_NOTIFS.unshift({ id: r.ID, title: r['Σχόλια'] || 'Νέα πρόταση Summit Squad', who: r['Όνομα'] || '' });
+        SS_NOTIFS = pushNotifHistory_(SS_NOTIFS, SS_NOTIF_HISTORY_KEY, { id: r.ID, title: r['Σχόλια'] || 'Νέα πρόταση Summit Squad', who: r['Όνομα'] || '', ts: addedNow, read: false });
         ssNotifChanged = true;
       } else {
-        NOTIFS.unshift({ id: r.ID, title: r['Σχόλια'] || 'Νέα εξόρμηση', who: r['Όνομα'] || '' });
+        NOTIFS = pushNotifHistory_(NOTIFS, NOTIF_HISTORY_KEY, { id: r.ID, title: r['Σχόλια'] || 'Νέα εξόρμηση', who: r['Όνομα'] || '', ts: addedNow, read: false });
         notifChanged = true;
       }
     });
@@ -2162,9 +2177,52 @@ fMonth.addEventListener('change', () => {
   refreshView();
 }));
 
+// ---- Κοινά helpers για ιστορικό ειδοποιήσεων (γενικές + Summit Squad) ----
+// Κρατάμε ιστορικό των 5 πιο πρόσφατων προσθηκών, με χρονοσήμανση, persisted
+// στο localStorage. Το κλικ σε μια ειδοποίηση απλά τη σημειώνει ως
+// διαβασμένη (χάνει το κόκκινο dot) -- δεν εξαφανίζεται από τη λίστα.
+const NOTIF_HISTORY_MAX = 5;
+
+function loadNotifHistory_(key){
+  try {
+    const raw = localStorage.getItem(key);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch(e){ return []; }
+}
+function saveNotifHistory_(key, arr){
+  try { localStorage.setItem(key, JSON.stringify(arr)); } catch(e){ /* αγνόησε */ }
+}
+function pushNotifHistory_(list, key, entry){
+  const next = [entry, ...list.filter(n => n.id !== entry.id)].slice(0, NOTIF_HISTORY_MAX);
+  saveNotifHistory_(key, next);
+  return next;
+}
+function markNotifRead_(list, key, id){
+  const next = list.map(n => n.id === id ? { ...n, read:true } : n);
+  saveNotifHistory_(key, next);
+  return next;
+}
+function unreadNotifCount_(list){ return list.filter(n => !n.read).length; }
+function formatNotifTime_(iso){
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const diffMin = Math.floor((Date.now() - d.getTime()) / 60000);
+  if (diffMin < 1) return 'μόλις τώρα';
+  if (diffMin < 60) return `πριν ${diffMin} λεπτ${diffMin === 1 ? 'ό' : 'ά'}`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `πριν ${diffH} ώρ${diffH === 1 ? 'α' : 'ες'}`;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${dd}/${mm} ${hh}:${mi}`;
+}
+
 // ---- Ειδοποιήσεις νέων εξορμήσεων ----
 let KNOWN_IDS = null; // null = δεν έχει γίνει ακόμα αρχικό sync
-let NOTIFS = [];
+const NOTIF_HISTORY_KEY = 'vp_notif_history_v1';
+let NOTIFS = loadNotifHistory_(NOTIF_HISTORY_KEY);
 let notifsInitialized = false;
 const KNOWN_IDS_STORAGE_KEY = 'vp_known_ids_v1';
 
@@ -2200,8 +2258,9 @@ function initNotificationsFromPersisted_(){
   if (persisted !== null){
     const freshRows = ROWS.filter(r => !persisted.has(r.ID));
     if (freshRows.length){
+      const now = new Date().toISOString();
       freshRows.forEach(r => {
-        NOTIFS.unshift({ id: r.ID, title: r['Σχόλια'] || 'Νέα εξόρμηση', who: r['Όνομα'] || '' });
+        NOTIFS = pushNotifHistory_(NOTIFS, NOTIF_HISTORY_KEY, { id: r.ID, title: r['Σχόλια'] || 'Νέα εξόρμηση', who: r['Όνομα'] || '', ts: now, read: false });
       });
       renderNotifs();
     }
@@ -2218,14 +2277,20 @@ function renderNotifs(){
   const list = document.getElementById('notifList');
   if (NOTIFS.length === 0){
     badge.classList.remove('show');
-    list.innerHTML = '<div class="notif-empty">Καμία νέα ειδοποίηση</div>';
+    list.innerHTML = '<div class="notif-empty">Καμία πρόσφατη προσθήκη</div>';
     return;
   }
-  badge.textContent = NOTIFS.length;
-  badge.classList.add('show');
+  const unread = unreadNotifCount_(NOTIFS);
+  if (unread > 0){
+    badge.textContent = unread;
+    badge.classList.add('show');
+  } else {
+    badge.classList.remove('show');
+  }
   list.innerHTML = NOTIFS.map(n => `
-    <a href="#exp-${n.id}" class="notif-item" data-notif-id="${n.id}">
+    <a href="#exp-${n.id}" class="notif-item ${n.read ? '' : 'unread'}" data-notif-id="${n.id}">
       <b>${escapeHtml(n.title)}</b>${escapeHtml(n.who ? ('πρόταση: ' + n.who) : '')}
+      <span class="notif-ts">${formatNotifTime_(n.ts)}</span>
     </a>
   `).join('');
   list.querySelectorAll('.notif-item').forEach(el => {
@@ -2237,7 +2302,7 @@ function renderNotifs(){
 }
 
 function goToNotif(id){
-  NOTIFS = NOTIFS.filter(n => n.id !== id);
+  NOTIFS = markNotifRead_(NOTIFS, NOTIF_HISTORY_KEY, id);
   renderNotifs();
   document.getElementById('notifPanel').classList.remove('open');
   const card = document.getElementById('exp-' + id);
@@ -2261,13 +2326,14 @@ async function pollForUpdates(){
     }
     const fresh = data.filter(r => !KNOWN_IDS.has(r.ID));
     if (fresh.length){
+      const now = new Date().toISOString();
       fresh.forEach(r => {
-        NOTIFS.unshift({ id: r.ID, title: r['Σχόλια'] || 'Νέα εξόρμηση', who: r['Όνομα'] || '' });
+        NOTIFS = pushNotifHistory_(NOTIFS, NOTIF_HISTORY_KEY, { id: r.ID, title: r['Σχόλια'] || 'Νέα εξόρμηση', who: r['Όνομα'] || '', ts: now, read: false });
       });
       const freshSS = data.filter(r => isSSRow_(r) && KNOWN_SS_IDS && !KNOWN_SS_IDS.has(r.ID));
       if (freshSS.length){
         freshSS.forEach(r => {
-          SS_NOTIFS.unshift({ id: r.ID, title: r['Σχόλια'] || 'Νέα πρόταση Summit Squad', who: r['Όνομα'] || '' });
+          SS_NOTIFS = pushNotifHistory_(SS_NOTIFS, SS_NOTIF_HISTORY_KEY, { id: r.ID, title: r['Σχόλια'] || 'Νέα πρόταση Summit Squad', who: r['Όνομα'] || '', ts: now, read: false });
         });
       }
       ROWS = data;
@@ -2293,7 +2359,8 @@ document.addEventListener('click', (e) => {
 // Ανεξάρτητο σύστημα από τις γενικές ειδοποιήσεις παραπάνω -- δικό του
 // σύνολο γνωστών ID, δικό του localStorage κλειδί, δικό του καμπανάκι.
 let KNOWN_SS_IDS = null;
-let SS_NOTIFS = [];
+const SS_NOTIF_HISTORY_KEY = 'vp_ss_notif_history_v1';
+let SS_NOTIFS = loadNotifHistory_(SS_NOTIF_HISTORY_KEY);
 let ssNotifsInitialized = false;
 const KNOWN_SS_IDS_STORAGE_KEY = 'vp_known_ss_ids_v1';
 const isSSRow_ = (r) => !r['Ημερομηνία'];
@@ -2321,8 +2388,9 @@ function initSSNotificationsFromPersisted_(){
   if (persisted !== null){
     const freshRows = ROWS.filter(r => isSSRow_(r) && !persisted.has(r.ID));
     if (freshRows.length){
+      const now = new Date().toISOString();
       freshRows.forEach(r => {
-        SS_NOTIFS.unshift({ id: r.ID, title: r['Σχόλια'] || 'Νέα πρόταση Summit Squad', who: r['Όνομα'] || '' });
+        SS_NOTIFS = pushNotifHistory_(SS_NOTIFS, SS_NOTIF_HISTORY_KEY, { id: r.ID, title: r['Σχόλια'] || 'Νέα πρόταση Summit Squad', who: r['Όνομα'] || '', ts: now, read: false });
       });
       renderSSNotifs();
     }
@@ -2335,14 +2403,20 @@ function renderSSNotifs(){
   const list = document.getElementById('ssNotifList');
   if (SS_NOTIFS.length === 0){
     badge.classList.remove('show');
-    list.innerHTML = '<div class="ss-notif-empty">Καμία νέα ειδοποίηση</div>';
+    list.innerHTML = '<div class="ss-notif-empty">Καμία πρόσφατη προσθήκη</div>';
     return;
   }
-  badge.textContent = SS_NOTIFS.length;
-  badge.classList.add('show');
+  const unread = unreadNotifCount_(SS_NOTIFS);
+  if (unread > 0){
+    badge.textContent = unread;
+    badge.classList.add('show');
+  } else {
+    badge.classList.remove('show');
+  }
   list.innerHTML = SS_NOTIFS.map(n => `
-    <a href="#exp-${n.id}" class="ss-notif-item" data-ss-notif-id="${n.id}">
+    <a href="#exp-${n.id}" class="ss-notif-item ${n.read ? '' : 'unread'}" data-ss-notif-id="${n.id}">
       <b>${escapeHtml(n.title)}</b>${escapeHtml(n.who ? ('πρόταση: ' + n.who) : '')}
+      <span class="ss-notif-ts">${formatNotifTime_(n.ts)}</span>
     </a>
   `).join('');
   list.querySelectorAll('.ss-notif-item').forEach(el => {
@@ -2353,7 +2427,7 @@ function renderSSNotifs(){
   });
 }
 function goToSSNotif(id){
-  SS_NOTIFS = SS_NOTIFS.filter(n => n.id !== id);
+  SS_NOTIFS = markNotifRead_(SS_NOTIFS, SS_NOTIF_HISTORY_KEY, id);
   renderSSNotifs();
   document.getElementById('ssNotifPanel').classList.remove('open');
   // Δείξε τα Summit Squad αποτελέσματα ώστε η κάρτα να υπάρχει στη σελίδα
@@ -2379,6 +2453,12 @@ document.addEventListener('click', (e) => {
   if (wrap && !wrap.contains(e.target)) document.getElementById('ssNotifPanel').classList.remove('open');
 });
 
+
+// Αρχική απεικόνιση του ήδη αποθηκευμένου ιστορικού (τελευταίες 5 προσθήκες),
+// ώστε το badge/λίστα να δείχνουν σωστά ακόμα κι αν δεν υπάρξει τίποτα νέο
+// σε αυτή τη συνεδρία.
+renderNotifs();
+renderSSNotifs();
 
 setInterval(pollForUpdates, 45000);
 
