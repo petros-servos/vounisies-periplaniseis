@@ -2055,9 +2055,12 @@ document.getElementById('editModalCancel').addEventListener('click', () => {
 editForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const chosenName = eWhoSelect.value === '__other__' ? eWhoOther.value.trim() : eWhoSelect.value;
+  const editId = document.getElementById('eId').value;
+  const beforeRow = ROWS.find(r => r.ID === editId);
+  const wasDateless = beforeRow ? !beforeRow['Ημερομηνία'] : false;
   const payload = {
     action: 'update',
-    id: document.getElementById('eId').value,
+    id: editId,
     link: document.getElementById('eLink').value.trim(),
     date: eNoDate.checked ? '' : document.getElementById('eDate').value,
     duration: eDur.value,
@@ -2071,7 +2074,22 @@ editForm.addEventListener('submit', async (e) => {
   const res = await apiPost(payload);
   if (res.ok){
     editModalOverlay.classList.remove('show');
-    load();
+    await load();
+    // Αν άλλαξε η κατηγορία (χωρίς ημερομηνία <-> με ημερομηνία), ενημέρωσε
+    // ανάλογα τα ιστορικά ειδοποιήσεων -- αφαίρεσε την παλιά καταχώρηση από
+    // το ένα καμπανάκι και δημιούργησε νέα στο άλλο.
+    const nowDateless = !payload.date;
+    if (wasDateless && !nowDateless){
+      SS_NOTIFS = removeNotifEntry_(SS_NOTIFS, SS_NOTIF_HISTORY_KEY, editId);
+      NOTIFS = pushNotifHistory_(NOTIFS, NOTIF_HISTORY_KEY, { id: editId, title: payload.comment || 'Εξόρμηση με νέα ημερομηνία', who: payload.name || '', ts: new Date().toISOString(), read: false });
+      renderSSNotifs();
+      renderNotifs();
+    } else if (!wasDateless && nowDateless){
+      NOTIFS = removeNotifEntry_(NOTIFS, NOTIF_HISTORY_KEY, editId);
+      SS_NOTIFS = pushNotifHistory_(SS_NOTIFS, SS_NOTIF_HISTORY_KEY, { id: editId, title: payload.comment || 'Πρόταση Summit Squad', who: payload.name || '', ts: new Date().toISOString(), read: false });
+      renderNotifs();
+      renderSSNotifs();
+    }
   } else {
     showStatus('Δεν ήταν δυνατή η αποθήκευση.');
   }
@@ -2206,6 +2224,11 @@ function pushNotifHistory_(list, key, entry){
 }
 function markNotifRead_(list, key, id){
   const next = list.map(n => n.id === id ? { ...n, read:true } : n);
+  saveNotifHistory_(key, next);
+  return next;
+}
+function removeNotifEntry_(list, key, id){
+  const next = list.filter(n => n.id !== id);
   saveNotifHistory_(key, next);
   return next;
 }
@@ -2569,6 +2592,12 @@ async function onDelete(id){
   if (!confirm('Σίγουρα θέλετε να διαγράψετε οριστικά αυτή την εξόρμηση;')) return;
   const res = await apiPost({ action:'delete', id, adminPassword: ADMIN_PASSWORD_LOCAL });
   if (res.ok){
+    // Η διαγραφή αφαιρεί την εξόρμηση και από τα δύο ιστορικά ειδοποιήσεων
+    // (γενικό + Summit Squad), όπου κι αν βρίσκεται.
+    NOTIFS = removeNotifEntry_(NOTIFS, NOTIF_HISTORY_KEY, id);
+    SS_NOTIFS = removeNotifEntry_(SS_NOTIFS, SS_NOTIF_HISTORY_KEY, id);
+    renderNotifs();
+    renderSSNotifs();
     await load();
     refreshDayModalIfOpen();
   } else if (res.error === 'unauthorized'){
