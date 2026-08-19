@@ -254,7 +254,7 @@
   .notif-list{ padding:6px; }
   .notif-empty{ padding:16px; text-align:center; color: var(--text-dim); font-size:14.7px; }
   .notif-item{
-    display:block; padding:10px 10px; border-radius:9px;
+    display:block; padding:10px 30px 10px 10px; border-radius:9px;
     text-decoration:none; color: var(--text);
     font-size:14.7px; line-height:1.4;
     position:relative;
@@ -267,6 +267,14 @@
     width:7px; height:7px; border-radius:50%; background: var(--danger);
   }
   .notif-ts{ display:block; margin-top:4px; font-size:12.2px; color: var(--text-dim); }
+  .notif-dismiss{
+    position:absolute; top:8px; right:6px;
+    width:22px; height:22px; border-radius:50%;
+    border:none; background:transparent; color: var(--text-dim);
+    font-size:15px; line-height:1; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .notif-dismiss:hover{ background: var(--danger-soft); color: var(--danger); }
 
   /* ---- Name modal ---- */
   .modal-overlay{
@@ -834,7 +842,7 @@
   .ss-notif-list{ padding:6px; }
   .ss-notif-empty{ padding:14px; text-align:center; color: var(--text-dim); font-size:13.7px; }
   .ss-notif-item{
-    display:block; padding:9px 9px; border-radius:9px;
+    display:block; padding:9px 28px 9px 9px; border-radius:9px;
     text-decoration:none; color: var(--text);
     font-size:13.7px; line-height:1.4;
     position:relative;
@@ -847,6 +855,14 @@
     width:7px; height:7px; border-radius:50%; background: var(--moss);
   }
   .ss-notif-ts{ display:block; margin-top:4px; font-size:11.5px; color: var(--text-dim); }
+  .ss-notif-dismiss{
+    position:absolute; top:7px; right:5px;
+    width:20px; height:20px; border-radius:50%;
+    border:none; background:transparent; color: var(--text-dim);
+    font-size:14px; line-height:1; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .ss-notif-dismiss:hover{ background: color-mix(in srgb, var(--moss) 20%, transparent); color: var(--moss); }
 
   @media (max-width: 620px){
     .view-toggle-row{ flex-wrap:wrap; gap:10px; }
@@ -2320,12 +2336,21 @@ function renderNotifs(){
     <a href="#exp-${n.id}" class="notif-item ${n.read ? '' : 'unread'}" data-notif-id="${n.id}">
       <b>${escapeHtml(n.title)}</b>${escapeHtml(n.who ? ('πρόταση: ' + n.who) : '')}
       <span class="notif-ts">${formatNotifTime_(n.ts)}</span>
+      <button type="button" class="notif-dismiss" data-dismiss-id="${n.id}" title="Αφαίρεση ειδοποίησης">×</button>
     </a>
   `).join('');
   list.querySelectorAll('.notif-item').forEach(el => {
     el.addEventListener('click', (e) => {
       e.preventDefault();
       goToNotif(el.dataset.notifId);
+    });
+  });
+  list.querySelectorAll('.notif-dismiss').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      NOTIFS = removeNotifEntry_(NOTIFS, NOTIF_HISTORY_KEY, el.dataset.dismissId);
+      renderNotifs();
     });
   });
 }
@@ -2454,12 +2479,21 @@ function renderSSNotifs(){
     <a href="#exp-${n.id}" class="ss-notif-item ${n.read ? '' : 'unread'}" data-ss-notif-id="${n.id}">
       <b>${escapeHtml(n.title)}</b>${escapeHtml(n.who ? ('πρόταση: ' + n.who) : '')}
       <span class="ss-notif-ts">${formatNotifTime_(n.ts)}</span>
+      <button type="button" class="ss-notif-dismiss" data-ss-dismiss-id="${n.id}" title="Αφαίρεση ειδοποίησης">×</button>
     </a>
   `).join('');
   list.querySelectorAll('.ss-notif-item').forEach(el => {
     el.addEventListener('click', (e) => {
       e.preventDefault();
       goToSSNotif(el.dataset.ssNotifId);
+    });
+  });
+  list.querySelectorAll('.ss-notif-dismiss').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      SS_NOTIFS = removeNotifEntry_(SS_NOTIFS, SS_NOTIF_HISTORY_KEY, el.dataset.ssDismissId);
+      renderSSNotifs();
     });
   });
 }
