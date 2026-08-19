@@ -2120,12 +2120,22 @@ addForm.addEventListener('submit', async (e) => {
     fDate.required = true;
     addModalOverlay.classList.remove('show');
     await load();
-    // Ειδοποίηση και για τη δική μας προσθήκη, ώστε να επιβεβαιώνεται ότι όλα δουλεύουν
+    // Ειδοποίηση και για τη δική μας προσθήκη, ώστε να επιβεβαιώνεται ότι όλα δουλεύουν.
+    // Οι προτάσεις Summit Squad (χωρίς ημερομηνία) πάνε στο δικό τους καμπανάκι,
+    // όλες οι υπόλοιπες στο γενικό.
     const justAdded = ROWS.filter(r => !idsBefore.has(r.ID));
+    let notifChanged = false, ssNotifChanged = false;
     justAdded.forEach(r => {
-      NOTIFS.unshift({ id: r.ID, title: r['Σχόλια'] || 'Νέα εξόρμηση', who: r['Όνομα'] || '' });
+      if (isSSRow_(r)){
+        SS_NOTIFS.unshift({ id: r.ID, title: r['Σχόλια'] || 'Νέα πρόταση Summit Squad', who: r['Όνομα'] || '' });
+        ssNotifChanged = true;
+      } else {
+        NOTIFS.unshift({ id: r.ID, title: r['Σχόλια'] || 'Νέα εξόρμηση', who: r['Όνομα'] || '' });
+        notifChanged = true;
+      }
     });
-    if (justAdded.length) renderNotifs();
+    if (notifChanged) renderNotifs();
+    if (ssNotifChanged) renderSSNotifs();
   } else {
     showStatus('Δεν ήταν δυνατή η προσθήκη.');
   }
