@@ -1509,11 +1509,18 @@ function fillSelect(select, values, labelFn, placeholder){
 function render(){
   let rows = [...ROWS];
 
+  // Οι προτάσεις Summit Squad (χωρίς ημερομηνία) είναι κρυμμένες από
+  // την κανονική λίστα -- εμφανίζονται μόνο όταν είναι ενεργό το φίλτρο
+  // "Εξορμήσεις Summit Squad". Μόλις μια πρόταση πάρει ημερομηνία (μέσω
+  // επεξεργασίας), αυτόματα φεύγει από αυτή την κατηγορία και εμφανίζεται
+  // κανονικά στον αντίστοιχο μήνα, σαν όλες τις άλλες.
+  rows = ssFilterActive
+    ? rows.filter(r => !r['Ημερομηνία'])
+    : rows.filter(r => !!r['Ημερομηνία']);
+
   if (fMonth.value){
-    // Οι προτάσεις Summit Squad χωρίς ημερομηνία παραμένουν πάντα ορατές,
-    // πάνω-πάνω, ανεξάρτητα από το φίλτρο μήνα -- δεν έχουν μήνα να ταιριάξουν.
     rows = rows.filter(r => {
-      const d = r['Ημερομηνία']; if(!d) return true;
+      const d = r['Ημερομηνία']; if(!d) return true; // (μόνο όταν ssFilterActive -- δεν έχουν μήνα να ταιριάξουν)
       const dt = new Date(d);
       const key = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0');
       return key === fMonth.value;
@@ -1521,7 +1528,6 @@ function render(){
   }
   if (fDuration.value) rows = rows.filter(r => r['Διάρκεια'] === fDuration.value);
   if (fStay.value) rows = rows.filter(r => r['Διαμονή'] === fStay.value);
-  if (ssFilterActive) rows = rows.filter(r => !r['Ημερομηνία']);
 
   rows.sort((a,b) => new Date(a['Ημερομηνία']||0) - new Date(b['Ημερομηνία']||0));
 
@@ -2305,6 +2311,14 @@ function goToNotif(id){
   NOTIFS = markNotifRead_(NOTIFS, NOTIF_HISTORY_KEY, id);
   renderNotifs();
   document.getElementById('notifPanel').classList.remove('open');
+  // Οι κανονικές (με ημερομηνία) εξορμήσεις δεν εμφανίζονται όσο είναι
+  // ενεργό το φίλτρο Summit Squad -- το απενεργοποιούμε ώστε η κάρτα
+  // να υπάρχει στη σελίδα.
+  if (ssFilterActive){
+    ssFilterActive = false;
+    ssFilterBtn.classList.remove('active');
+    refreshView();
+  }
   const card = document.getElementById('exp-' + id);
   if (card){
     card.scrollIntoView({ behavior:'smooth', block:'center' });
