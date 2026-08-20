@@ -1057,7 +1057,7 @@
       <option value="Ελένη">Ελένη</option>
       <option value="Άρτεμις - Ντιάνα">Άρτεμις - Ντιάνα</option>
       <option value="Σοφία">Σοφία</option>
-      <option value="__other__">Άλλο...</option>
+      <option value="Εύη">Εύη</option>
     </select>
     <input type="text" id="nameModalOther" placeholder="Το όνομά σας" style="display:none;">
     <div class="modal-actions">
@@ -1112,7 +1112,7 @@
             <option value="Ελένη">Ελένη</option>
             <option value="Άρτεμις - Ντιάνα">Άρτεμις - Ντιάνα</option>
             <option value="Σοφία">Σοφία</option>
-            <option value="__other__">Άλλο...</option>
+            <option value="Εύη">Εύη</option>
           </select>
           <input type="text" id="fWhoOther" placeholder="Το όνομά σας" style="display:none; margin-top:6px;">
         </div>
@@ -1256,7 +1256,7 @@
             <option value="Ελένη">Ελένη</option>
             <option value="Άρτεμις - Ντιάνα">Άρτεμις - Ντιάνα</option>
             <option value="Σοφία">Σοφία</option>
-            <option value="__other__">Άλλο...</option>
+            <option value="Εύη">Εύη</option>
           </select>
           <input type="text" id="eWhoOther" placeholder="Όνομα" style="display:none; margin-top:6px;">
         </div>
@@ -1335,6 +1335,7 @@
         <option value="Ελένη">Ελένη</option>
         <option value="Άρτεμις - Ντιάνα">Άρτεμις - Ντιάνα</option>
         <option value="Σοφία">Σοφία</option>
+        <option value="Εύη">Εύη</option>
       </select>
     </div>
     <div class="add-toggle">
@@ -2301,7 +2302,9 @@ function initNotificationsFromPersisted_(){
   const currentIds = new Set(ROWS.map(r => r.ID));
 
   if (persisted !== null){
-    const freshRows = ROWS.filter(r => !persisted.has(r.ID));
+    // Οι προτάσεις Summit Squad (χωρίς ημερομηνία) δεν μπαίνουν εδώ --
+    // έχουν το δικό τους ξεχωριστό καμπανάκι/ιστορικό παρακάτω.
+    const freshRows = ROWS.filter(r => !persisted.has(r.ID) && !isSSRow_(r));
     if (freshRows.length){
       const now = new Date().toISOString();
       freshRows.forEach(r => {
@@ -2386,13 +2389,13 @@ async function pollForUpdates(){
       syncKnownSSIds();
       return;
     }
-    const fresh = data.filter(r => !KNOWN_IDS.has(r.ID));
-    if (fresh.length){
+    const fresh = data.filter(r => !KNOWN_IDS.has(r.ID) && !isSSRow_(r));
+    const freshSS = data.filter(r => isSSRow_(r) && KNOWN_SS_IDS && !KNOWN_SS_IDS.has(r.ID));
+    if (fresh.length || freshSS.length){
       const now = new Date().toISOString();
       fresh.forEach(r => {
         NOTIFS = pushNotifHistory_(NOTIFS, NOTIF_HISTORY_KEY, { id: r.ID, title: r['Σχόλια'] || 'Νέα εξόρμηση', who: r['Όνομα'] || '', ts: now, read: false });
       });
-      const freshSS = data.filter(r => isSSRow_(r) && KNOWN_SS_IDS && !KNOWN_SS_IDS.has(r.ID));
       if (freshSS.length){
         freshSS.forEach(r => {
           SS_NOTIFS = pushNotifHistory_(SS_NOTIFS, SS_NOTIF_HISTORY_KEY, { id: r.ID, title: r['Σχόλια'] || 'Νέα πρόταση Summit Squad', who: r['Όνομα'] || '', ts: now, read: false });
