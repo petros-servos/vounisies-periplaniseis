@@ -846,18 +846,6 @@
     font-size:15.3px;
     padding: 20px 24px 50px;
   }
-  .admin-line{
-    margin-top:8px;
-    font-weight:400;
-    font-size:11.5px;
-  }
-  .admin-line a{
-    color: var(--text-dim);
-    text-decoration:none;
-    opacity:0.6;
-  }
-  .admin-line a:hover{ opacity:1; text-decoration:underline; }
-  .admin-line a.is-admin{ color: var(--moss); opacity:0.9; }
 
   @media (max-width: 620px){
     .card{ grid-template-columns: 60px 1fr; }
@@ -1432,17 +1420,6 @@
   </div>
 </div>
 
-<div id="adminModalOverlay" class="modal-overlay">
-  <div class="modal-box">
-    <h3>Σύνδεση διαχειριστή</h3>
-    <input type="password" id="adminPasswordInput" placeholder="Κωδικός διαχειριστή">
-    <div class="modal-actions">
-      <button type="button" class="btn-accent" id="adminModalConfirm">Σύνδεση</button>
-      <button type="button" class="btn-ghost" id="adminModalCancel">Άκυρο</button>
-    </div>
-  </div>
-</div>
-
 <div id="dayModalOverlay" class="modal-overlay">
   <div class="modal-box day-modal-box">
     <h3 id="dayModalTitle">Εξορμήσεις</h3>
@@ -1569,7 +1546,6 @@
 
 <footer>
   Summit Squad – Βουνίσιες περιπλανήσεις
-  <div class="admin-line"><a href="#" id="adminLink">Διαχειριστής</a></div>
 </footer>
 
 <script>
@@ -2092,7 +2068,7 @@ function cardHtml(r, today){
         <button class="btn-maybe ${iAmMaybe ? 'active' : ''}" data-maybe="${r.ID}">${iAmMaybe ? '✓ Το σκέφτομαι' : 'Το σκέφτομαι'}</button>
         <button class="btn-chat" data-chat="${r.ID}" data-chat-title="${escapeAttr(title)}">💬 Κους Κους${commentCount > 0 ? `<span class="chat-count-badge">${commentCount}</span>` : ''}</button>
         <button class="btn-edit" data-edit="${r.ID}">Επεξεργασία</button>
-        ${isAdmin() ? `<button class="btn-danger" data-del="${r.ID}">Διαγραφή</button>` : ''}
+        <button class="btn-danger" data-del="${r.ID}">Διαγραφή</button>
       </div>
     </div>
   `;
@@ -2892,85 +2868,15 @@ if (toolbarEl){
   ).observe(sentinel);
 }
 
-// ---- Admin (διαγραφή) ----
-const ADMIN_STORAGE_KEY = 'vp_admin_password_v1';
-let ADMIN_PASSWORD_LOCAL = null;
-try { ADMIN_PASSWORD_LOCAL = localStorage.getItem(ADMIN_STORAGE_KEY); } catch(e){ /* localStorage μη διαθέσιμο */ }
-
-function isAdmin(){
-  return !!ADMIN_PASSWORD_LOCAL;
-}
-
-const adminLink = document.getElementById('adminLink');
-const adminModalOverlay = document.getElementById('adminModalOverlay');
-const adminPasswordInput = document.getElementById('adminPasswordInput');
-
-function refreshAdminLinkLabel(){
-  if (isAdmin()){
-    adminLink.textContent = 'Διαχειριστής ✓ (Έξοδος)';
-    adminLink.classList.add('is-admin');
-  } else {
-    adminLink.textContent = 'Διαχειριστής';
-    adminLink.classList.remove('is-admin');
-  }
-}
-refreshAdminLinkLabel();
-
-adminLink.addEventListener('click', (e) => {
-  e.preventDefault();
-  if (isAdmin()){
-    if (confirm('Αποσύνδεση από λειτουργία διαχειριστή σε αυτή τη συσκευή;')){
-      ADMIN_PASSWORD_LOCAL = null;
-      try { localStorage.removeItem(ADMIN_STORAGE_KEY); } catch(e){}
-      refreshAdminLinkLabel();
-      render();
-    }
-    return;
-  }
-  adminPasswordInput.value = '';
-  adminModalOverlay.classList.add('show');
-  adminPasswordInput.focus();
-});
-
-document.getElementById('adminModalCancel').addEventListener('click', () => {
-  adminModalOverlay.classList.remove('show');
-});
-
-document.getElementById('adminModalConfirm').addEventListener('click', submitAdminPassword);
-adminPasswordInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') submitAdminPassword();
-});
-
-async function submitAdminPassword(){
-  const pw = adminPasswordInput.value;
-  if (!pw) return;
-  const res = await apiPost({ action:'checkAdmin', adminPassword: pw });
-  if (res.ok){
-    ADMIN_PASSWORD_LOCAL = pw;
-    try { localStorage.setItem(ADMIN_STORAGE_KEY, pw); } catch(e){}
-    adminModalOverlay.classList.remove('show');
-    refreshAdminLinkLabel();
-    render();
-  } else {
-    showStatus('Λάθος κωδικός διαχειριστή.');
-  }
-}
-
 async function onDelete(id){
   if (!confirm('Σίγουρα θέλετε να διαγράψετε οριστικά αυτή την εξόρμηση;')) return;
-  const res = await apiPost({ action:'delete', id, adminPassword: ADMIN_PASSWORD_LOCAL });
+  const res = await apiPost({ action:'delete', id });
   if (res.ok){
     // Μετά τη διαγραφή, η γραμμή απλά δεν υπάρχει πια στα δεδομένα -- οι
     // λίστες ειδοποιήσεων (που υπολογίζονται ζωντανά από τα ROWS) την
     // αφαιρούν αυτόματα, χωρίς να χρειάζεται τίποτα άλλο εδώ.
     await load();
     refreshDayModalIfOpen();
-  } else if (res.error === 'unauthorized'){
-    showStatus('Ο κωδικός διαχειριστή δεν είναι πλέον έγκυρος. Συνδεθείτε ξανά.');
-    ADMIN_PASSWORD_LOCAL = null;
-    try { localStorage.removeItem(ADMIN_STORAGE_KEY); } catch(e){}
-    refreshAdminLinkLabel();
-    render();
   } else {
     showStatus('Δεν ήταν δυνατή η διαγραφή.');
   }
