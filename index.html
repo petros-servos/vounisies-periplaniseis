@@ -2342,11 +2342,16 @@ function startEditComment_(id){
     // Optimistic: εμφανίζεται αμέσως τοπικά, χωρίς να περιμένουμε reload.
     LAST_CHAT_COMMENTS_ = LAST_CHAT_COMMENTS_.map(c => c.ID === id ? { ...c, 'Κείμενο': newText } : c);
     renderChatMessages_(LAST_CHAT_COMMENTS_);
-    const res = await apiPost({ action:'updateComment', id, name: MY_NAME, text: newText });
-    if (res.ok){
-      pollForUpdates();
-    } else {
-      showStatus('Δεν ήταν δυνατή η ενημέρωση του κους κους.');
+    try {
+      const res = await apiPost({ action:'updateComment', id, name: MY_NAME, text: newText });
+      if (res.ok){
+        pollForUpdates();
+      } else {
+        showStatus('Δεν ήταν δυνατή η ενημέρωση του κους κους.');
+        await loadChatMessages_(); // επαναφορά στο πραγματικό, αφού απέτυχε
+      }
+    } catch (err){
+      showStatus('Δεν ήταν δυνατή η ενημέρωση του κους κους (πρόβλημα σύνδεσης, δοκιμάστε ξανά).');
       await loadChatMessages_(); // επαναφορά στο πραγματικό, αφού απέτυχε
     }
   };
@@ -2362,13 +2367,22 @@ async function deleteComment_ui(id){
   const backup = LAST_CHAT_COMMENTS_;
   LAST_CHAT_COMMENTS_ = LAST_CHAT_COMMENTS_.filter(c => c.ID !== id);
   renderChatMessages_(LAST_CHAT_COMMENTS_);
-  const res = await apiPost({ action:'deleteComment', id, name: MY_NAME });
-  if (res.ok){
-    pollForUpdates();
-  } else {
+  try {
+    const res = await apiPost({ action:'deleteComment', id, name: MY_NAME });
+    if (res.ok){
+      pollForUpdates();
+    } else {
+      LAST_CHAT_COMMENTS_ = backup;
+      renderChatMessages_(LAST_CHAT_COMMENTS_);
+      showStatus('Δεν ήταν δυνατή η διαγραφή του κους κους.');
+    }
+  } catch (err){
+    // Αίτημα απέτυχε εντελώς (π.χ. πρόβλημα σύνδεσης) -- η οθόνη ΠΡΕΠΕΙ να
+    // επιστρέψει στην πραγματική κατάσταση, αλλιώς το μήνυμα φαίνεται
+    // "διαγραμμένο" ενώ στην πραγματικότητα παραμένει στο Sheet.
     LAST_CHAT_COMMENTS_ = backup;
     renderChatMessages_(LAST_CHAT_COMMENTS_);
-    showStatus('Δεν ήταν δυνατή η διαγραφή του κους κους.');
+    showStatus('Δεν ήταν δυνατή η διαγραφή του κους κους (πρόβλημα σύνδεσης, δοκιμάστε ξανά).');
   }
 }
 
@@ -2420,21 +2434,31 @@ document.getElementById('chatForm').addEventListener('submit', async (e) => {
   box.scrollTop = box.scrollHeight;
 
   sendBtn.disabled = true;
-  const res = await apiPost({ action:'addComment', expeditionId: CHAT_EXPEDITION_ID, name: MY_NAME, text, ...replyPayload });
-  sendBtn.disabled = false;
+  try {
+    const res = await apiPost({ action:'addComment', expeditionId: CHAT_EXPEDITION_ID, name: MY_NAME, text, ...replyPayload });
+    sendBtn.disabled = false;
 
-  if (res.ok){
-    // Αντικαθιστά το προσωρινό με το πραγματικό (σωστό ID) από τον server.
-    await loadChatMessages_();
-    box.scrollTop = box.scrollHeight;
-    // Ενημερώνει και το badge αριθμού σχολίων στην κάρτα (από πίσω),
-    // χωρίς να πειράξει τα τρέχοντα φίλτρα.
-    pollForUpdates();
-  } else {
-    // Απέτυχε -- αφαίρεσε το προσωρινό μήνυμα και ενημέρωσε.
+    if (res.ok){
+      // Αντικαθιστά το προσωρινό με το πραγματικό (σωστό ID) από τον server.
+      await loadChatMessages_();
+      box.scrollTop = box.scrollHeight;
+      // Ενημερώνει και το badge αριθμού σχολίων στην κάρτα (από πίσω),
+      // χωρίς να πειράξει τα τρέχοντα φίλτρα.
+      pollForUpdates();
+    } else {
+      // Απέτυχε -- αφαίρεσε το προσωρινό μήνυμα και ενημέρωσε.
+      LAST_CHAT_COMMENTS_ = LAST_CHAT_COMMENTS_.filter(c => c.ID !== tempId);
+      renderChatMessages_(LAST_CHAT_COMMENTS_);
+      showStatus('Δεν ήταν δυνατή η αποστολή του κους κους.');
+    }
+  } catch (err){
+    // Αίτημα απέτυχε εντελώς (π.χ. πρόβλημα σύνδεσης) -- αφαίρεσε το
+    // προσωρινό μήνυμα, αλλιώς φαίνεται σαν να "στάλθηκε" ενώ ποτέ δεν
+    // έφτασε στο Sheet.
+    sendBtn.disabled = false;
     LAST_CHAT_COMMENTS_ = LAST_CHAT_COMMENTS_.filter(c => c.ID !== tempId);
     renderChatMessages_(LAST_CHAT_COMMENTS_);
-    showStatus('Δεν ήταν δυνατή η αποστολή του κους κους.');
+    showStatus('Δεν ήταν δυνατή η αποστολή του κους κους (πρόβλημα σύνδεσης, δοκιμάστε ξανά).');
   }
 });
 
