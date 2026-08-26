@@ -2153,6 +2153,7 @@ async function openChatModal(expeditionId, title){
 }
 
 let LAST_CHAT_COMMENTS_ = [];
+let EDITING_COMMENT_ID_ = null;
 
 async function loadChatMessages_(){
   if (!CHAT_EXPEDITION_ID) return;
@@ -2160,6 +2161,10 @@ async function loadChatMessages_(){
     const comments = await apiGetComments(CHAT_EXPEDITION_ID);
     if (!Array.isArray(comments)) return;
     LAST_CHAT_COMMENTS_ = comments;
+    // Όσο επεξεργάζεσαι ένα μήνυμα, το ζωντανό refresh δεν ξαναφτιάχνει τη
+    // λίστα -- θα διέγραφε το πεδίο επεξεργασίας. Το cache πάντως ενημερώνεται
+    // κανονικά από πίσω, ώστε μόλις τελειώσεις να δεις τα πάντα φρέσκα.
+    if (EDITING_COMMENT_ID_) return;
     renderChatMessages_(comments);
   } catch(e){ /* σιωπηλή αποτυχία -- διατηρεί ό,τι ήδη φαίνεται στην οθόνη */ }
 }
@@ -2209,6 +2214,7 @@ function startEditComment_(id){
   if (!comment) return;
   const textEl = document.querySelector(`.chat-msg-text[data-msg-text="${CSS.escape(id)}"]`);
   if (!textEl) return;
+  EDITING_COMMENT_ID_ = id;
   textEl.innerHTML = `
     <input type="text" class="chat-edit-input" value="${escapeAttr(comment['Κείμενο'] || '')}" maxlength="1000">
     <div class="chat-edit-actions">
@@ -2219,14 +2225,17 @@ function startEditComment_(id){
   const input = textEl.querySelector('.chat-edit-input');
   input.focus();
   input.setSelectionRange(input.value.length, input.value.length);
-  textEl.querySelector('.chat-edit-cancel').addEventListener('click', () => {
+  const stopEditing = () => {
+    EDITING_COMMENT_ID_ = null;
     renderChatMessages_(LAST_CHAT_COMMENTS_);
-  });
+  };
+  textEl.querySelector('.chat-edit-cancel').addEventListener('click', stopEditing);
   const save = async () => {
     const newText = input.value.trim();
     if (!newText) return;
     const res = await apiPost({ action:'updateComment', id, name: MY_NAME, text: newText });
     if (res.ok){
+      EDITING_COMMENT_ID_ = null;
       await loadChatMessages_();
       pollForUpdates();
     } else {
@@ -2236,7 +2245,7 @@ function startEditComment_(id){
   textEl.querySelector('.chat-edit-save').addEventListener('click', save);
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter'){ e.preventDefault(); save(); }
-    if (e.key === 'Escape'){ renderChatMessages_(LAST_CHAT_COMMENTS_); }
+    if (e.key === 'Escape'){ stopEditing(); }
   });
 }
 
@@ -2255,6 +2264,7 @@ function closeChatModal(){
   document.getElementById('chatModalOverlay').classList.remove('show');
   if (CHAT_POLL_INTERVAL){ clearInterval(CHAT_POLL_INTERVAL); CHAT_POLL_INTERVAL = null; }
   CHAT_EXPEDITION_ID = null;
+  EDITING_COMMENT_ID_ = null;
 }
 document.getElementById('chatModalClose').addEventListener('click', closeChatModal);
 
