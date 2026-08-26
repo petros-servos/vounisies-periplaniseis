@@ -2175,17 +2175,23 @@ async function openChatModal(expeditionId, title){
   await loadChatMessages_();
   // Ζωντανή ενημέρωση όσο το chat είναι ανοιχτό.
   if (CHAT_POLL_INTERVAL) clearInterval(CHAT_POLL_INTERVAL);
-  CHAT_POLL_INTERVAL = setInterval(loadChatMessages_, 5000);
+  CHAT_POLL_INTERVAL = setInterval(loadChatMessages_, 3000);
 }
 
 let LAST_CHAT_COMMENTS_ = [];
 let EDITING_COMMENT_ID_ = null;
+let CHAT_LOAD_SEQ_ = 0;
 
 async function loadChatMessages_(){
   if (!CHAT_EXPEDITION_ID) return;
+  const seq = ++CHAT_LOAD_SEQ_;
   try {
     const comments = await apiGetComments(CHAT_EXPEDITION_ID);
     if (!Array.isArray(comments)) return;
+    // Αν στο μεταξύ ξεκίνησε νεότερο αίτημα, αυτή η απάντηση είναι
+    // ξεπερασμένη (μπορεί να έφτασε καθυστερημένα, εκτός σειράς) -- αγνόησέ
+    // την, αλλιώς κινδυνεύει να σβήσει πιο φρέσκα δεδομένα.
+    if (seq !== CHAT_LOAD_SEQ_) return;
     LAST_CHAT_COMMENTS_ = comments;
     // Όσο επεξεργάζεσαι ένα μήνυμα, το ζωντανό refresh δεν ξαναφτιάχνει τη
     // λίστα -- θα διέγραφε το πεδίο επεξεργασίας. Το cache πάντως ενημερώνεται
@@ -2259,13 +2265,16 @@ function startEditComment_(id){
   const save = async () => {
     const newText = input.value.trim();
     if (!newText) return;
+    EDITING_COMMENT_ID_ = null;
+    // Optimistic: εμφανίζεται αμέσως τοπικά, χωρίς να περιμένουμε reload.
+    LAST_CHAT_COMMENTS_ = LAST_CHAT_COMMENTS_.map(c => c.ID === id ? { ...c, 'Κείμενο': newText } : c);
+    renderChatMessages_(LAST_CHAT_COMMENTS_);
     const res = await apiPost({ action:'updateComment', id, name: MY_NAME, text: newText });
     if (res.ok){
-      EDITING_COMMENT_ID_ = null;
-      await loadChatMessages_();
       pollForUpdates();
     } else {
       showStatus('Δεν ήταν δυνατή η ενημέρωση του κους κους.');
+      await loadChatMessages_(); // επαναφορά στο πραγματικό, αφού απέτυχε
     }
   };
   textEl.querySelector('.chat-edit-save').addEventListener('click', save);
@@ -2277,11 +2286,15 @@ function startEditComment_(id){
 
 async function deleteComment_ui(id){
   if (!confirm('Να διαγραφεί αυτό το κους κους;')) return;
+  const backup = LAST_CHAT_COMMENTS_;
+  LAST_CHAT_COMMENTS_ = LAST_CHAT_COMMENTS_.filter(c => c.ID !== id);
+  renderChatMessages_(LAST_CHAT_COMMENTS_);
   const res = await apiPost({ action:'deleteComment', id, name: MY_NAME });
   if (res.ok){
-    await loadChatMessages_();
     pollForUpdates();
   } else {
+    LAST_CHAT_COMMENTS_ = backup;
+    renderChatMessages_(LAST_CHAT_COMMENTS_);
     showStatus('Δεν ήταν δυνατή η διαγραφή του κους κους.');
   }
 }
@@ -2306,20 +2319,38 @@ document.getElementById('chatForm').addEventListener('submit', async (e) => {
   const text = input.value.trim();
   if (!text) return;
   const sendBtn = document.getElementById('chatSendBtn');
+  const box = document.getElementById('chatMessages');
+
+  input.value = '';
+  triggerChatBurst_();
+
+  // Εμφάνιση αισιόδοξα (optimistic): το μήνυμα φαίνεται ΑΜΕΣΩΣ, τοπικά,
+  // πριν καν απαντήσει ο server -- αποφεύγει το διπλό ταξίδι (αποστολή,
+  // μετά επαναφόρτωση όλης της λίστας) που έκανε την εμφάνιση να αργεί.
+  const tempId = 'tmp-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+  LAST_CHAT_COMMENTS_ = [...LAST_CHAT_COMMENTS_, {
+    ID: tempId, 'ID Εξόρμησης': CHAT_EXPEDITION_ID, 'Όνομα': MY_NAME,
+    'Κείμενο': text, 'Χρόνος': new Date().toISOString(),
+  }];
+  renderChatMessages_(LAST_CHAT_COMMENTS_);
+  box.scrollTop = box.scrollHeight;
+
   sendBtn.disabled = true;
   const res = await apiPost({ action:'addComment', expeditionId: CHAT_EXPEDITION_ID, name: MY_NAME, text });
   sendBtn.disabled = false;
+
   if (res.ok){
-    input.value = '';
-    triggerChatBurst_();
+    // Αντικαθιστά το προσωρινό με το πραγματικό (σωστό ID) από τον server.
     await loadChatMessages_();
-    const box = document.getElementById('chatMessages');
     box.scrollTop = box.scrollHeight;
     // Ενημερώνει και το badge αριθμού σχολίων στην κάρτα (από πίσω),
     // χωρίς να πειράξει τα τρέχοντα φίλτρα.
     pollForUpdates();
   } else {
-    showStatus('Δεν ήταν δυνατή η αποστολή του σχολίου.');
+    // Απέτυχε -- αφαίρεσε το προσωρινό μήνυμα και ενημέρωσε.
+    LAST_CHAT_COMMENTS_ = LAST_CHAT_COMMENTS_.filter(c => c.ID !== tempId);
+    renderChatMessages_(LAST_CHAT_COMMENTS_);
+    showStatus('Δεν ήταν δυνατή η αποστολή του κους κους.');
   }
 });
 
@@ -2726,7 +2757,7 @@ async function pollForUpdates(){
 renderNotifs();
 renderSSNotifs();
 
-setInterval(pollForUpdates, 45000);
+setInterval(pollForUpdates, 20000);
 
 // ---- Dark mode toggle ----
 const themeToggle = document.getElementById('themeToggle');
