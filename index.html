@@ -467,16 +467,16 @@
   .btn-edit:hover{ opacity:0.85; }
   .btn-chat{
     position:relative;
-    background: color-mix(in srgb, var(--accent) 18%, var(--surface-2));
-    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
-    color: var(--text);
+    background: #2563a8;
+    border-color: #2563a8;
+    color: #ffffff;
   }
   .btn-chat:hover{ opacity:0.85; }
   .btn-chat .chat-count-badge{
     display:inline-flex; align-items:center; justify-content:center;
     min-width:17px; height:17px; padding:0 4px;
     border-radius:9px;
-    background: var(--danger);
+    background: #f2971f;
     color:#fff;
     font-size:11px; font-weight:700;
     margin-left:5px;
@@ -842,6 +842,27 @@
   @keyframes confettiFall{
     0%{ transform: translateY(0) translateX(0) rotate(0deg); opacity:1; }
     100%{ transform: translateY(112vh) translateX(var(--drift,0px)) rotate(var(--spin,540deg)); opacity:0.85; }
+  }
+
+  .chat-burst-layer{
+    position:fixed;
+    inset:0;
+    z-index:2000;
+    pointer-events:none;
+    overflow:hidden;
+  }
+  .chat-burst-piece{
+    position:absolute;
+    bottom:-10vh;
+    opacity:0;
+    animation-name: chatBurstRise;
+    animation-timing-function: cubic-bezier(.22,.7,.32,1);
+    animation-fill-mode: forwards;
+  }
+  @keyframes chatBurstRise{
+    0%{ transform: translateY(0) translateX(0) scale(0.5) rotate(0deg); opacity:0; }
+    12%{ opacity:1; }
+    100%{ transform: translateY(-78vh) translateX(var(--drift,0px)) scale(1.15) rotate(var(--wiggle,12deg)); opacity:0; }
   }
 
   /* ---- Εναλλαγή προβολής Λίστα/Ημερολόγιο ---- */
@@ -2142,6 +2163,11 @@ function colorForName_(name){
 }
 
 async function openChatModal(expeditionId, title){
+  if (!MY_NAME){
+    const name = await askName();
+    if (!name) return; // ακύρωσε -- δεν ανοίγει το chat χωρίς όνομα
+    MY_NAME = name;
+  }
   CHAT_EXPEDITION_ID = expeditionId;
   document.getElementById('chatModalTitle').textContent = title || '';
   document.getElementById('chatMessages').innerHTML = '<div class="chat-empty">Φόρτωση...</div>';
@@ -2285,6 +2311,7 @@ document.getElementById('chatForm').addEventListener('submit', async (e) => {
   sendBtn.disabled = false;
   if (res.ok){
     input.value = '';
+    triggerChatBurst_();
     await loadChatMessages_();
     const box = document.getElementById('chatMessages');
     box.scrollTop = box.scrollHeight;
@@ -2851,6 +2878,35 @@ function triggerConfetti(){
   }
   document.body.appendChild(layer);
   setTimeout(() => layer.remove(), 8000);
+}
+
+// Διαφορετικό, ελαφρύτερο εφέ από τα κομφετί -- emoji που ανεβαίνουν από
+// κάτω και σβήνουν, για κάθε νέο μήνυμα στο κους κους.
+function triggerChatBurst_(){
+  const emojis = ['🎈', '✨', '🥾', '⛰️', '🙌', '😄', '🌤️'];
+  const layer = document.createElement('div');
+  layer.className = 'chat-burst-layer';
+  const count = 16;
+  for (let i = 0; i < count; i++){
+    const el = document.createElement('div');
+    el.className = 'chat-burst-piece';
+    const left = 8 + Math.random() * 84;
+    const duration = 1.7 + Math.random() * 1.3;
+    const delay = Math.random() * 0.35;
+    const drift = (Math.random() * 140 - 70) + 'px';
+    const wiggle = (Math.random() * 40 - 20) + 'deg';
+    const size = 18 + Math.random() * 18;
+    el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    el.style.left = left + '%';
+    el.style.fontSize = size + 'px';
+    el.style.animationDuration = duration + 's';
+    el.style.animationDelay = delay + 's';
+    el.style.setProperty('--drift', drift);
+    el.style.setProperty('--wiggle', wiggle);
+    layer.appendChild(el);
+  }
+  document.body.appendChild(layer);
+  setTimeout(() => layer.remove(), 3500);
 }
 
 // ---- Ορειβατική Ορολογία / Ελληνικά Βουνά ----
