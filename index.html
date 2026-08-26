@@ -367,6 +367,50 @@
   }
   .chat-edit-actions{ display:flex; gap:6px; justify-content:flex-end; }
   .chat-edit-actions button{ padding:5px 12px; font-size:13px; }
+
+  .chat-reply-bar{
+    display:flex; align-items:center; gap:8px;
+    padding:7px 10px; margin-bottom:8px;
+    border-radius:9px;
+    background: var(--surface-2);
+    border-left:3px solid var(--accent);
+  }
+  .chat-reply-bar-content{ flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
+  .chat-reply-bar-label{
+    font-family:Calibri, Carlito, sans-serif; font-size:12.5px; color: var(--text-dim);
+  }
+  .chat-reply-bar-label b{ color: var(--text); }
+  .chat-reply-bar-text{
+    font-size:13px; color: var(--text-dim);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  #chatReplyBarCancel{
+    background:transparent; border:none; cursor:pointer;
+    font-size:17px; color: var(--text-dim); padding:2px 6px; border-radius:6px; flex-shrink:0;
+  }
+  #chatReplyBarCancel:hover{ background: var(--surface); }
+
+  .chat-reply-quote{
+    display:block; margin-bottom:5px; padding:5px 8px;
+    border-left:3px solid var(--border);
+    border-radius:6px;
+    background: color-mix(in srgb, var(--surface) 60%, transparent);
+    cursor:pointer;
+  }
+  .chat-reply-quote:hover{ background: var(--surface); }
+  .chat-reply-quote-name{
+    display:block; font-family:Calibri, Carlito, sans-serif; font-weight:700; font-size:12px;
+  }
+  .chat-reply-quote-text{
+    display:block; font-size:12.3px; color: var(--text-dim);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .chat-msg.highlight-flash{ animation: chatMsgFlash 1.4s ease; }
+  @keyframes chatMsgFlash{
+    0%{ box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 70%, transparent); }
+    100%{ box-shadow: none; }
+  }
+
   .chat-form{
     display:flex; gap:8px; margin-bottom:10px;
   }
@@ -1420,6 +1464,13 @@
     <div id="chatMessages" class="chat-messages">
       <div class="chat-empty">Φόρτωση...</div>
     </div>
+    <div id="chatReplyBar" class="chat-reply-bar" style="display:none;">
+      <div class="chat-reply-bar-content">
+        <span class="chat-reply-bar-label">↩️ Απάντηση σε <b id="chatReplyBarName"></b></span>
+        <span class="chat-reply-bar-text" id="chatReplyBarText"></span>
+      </div>
+      <button type="button" id="chatReplyBarCancel" title="Ακύρωση απάντησης">×</button>
+    </div>
     <form id="chatForm" class="chat-form">
       <input type="text" id="chatInput" placeholder="Γράψε κάτι... (μπορείς να επικολλήσεις και link)" autocomplete="off" maxlength="1000">
       <button type="submit" class="btn-accent" id="chatSendBtn">Στείλε</button>
@@ -2211,17 +2262,26 @@ function renderChatMessages_(comments){
   box.innerHTML = comments.map(c => {
     const own = MY_NAME && c['Όνομα'] === MY_NAME;
     const color = colorForName_(c['Όνομα'] || '');
+    const replyToId = c['ΑπάντησηΣε'] || '';
+    const replyQuote = replyToId ? `
+      <div class="chat-reply-quote" data-jump-to="${escapeAttr(replyToId)}">
+        <span class="chat-reply-quote-name">${escapeHtml(c['ΑπάντησηΌνομα'] || '')}</span>
+        <span class="chat-reply-quote-text">${escapeHtml(c['ΑπάντησηΚείμενο'] || '')}</span>
+      </div>
+    ` : '';
     return `
       <div class="chat-msg ${own ? 'own' : ''}" style="border-left-color:${color};" data-comment-id="${escapeAttr(c.ID)}">
         <div class="chat-msg-head">
           <span class="chat-msg-name" style="color:${color};">${escapeHtml(c['Όνομα'] || '')}</span>
-          ${own ? `
-            <span class="chat-msg-tools">
+          <span class="chat-msg-tools">
+            <button type="button" class="chat-msg-tool" data-reply-comment="${escapeAttr(c.ID)}" title="Απάντηση">↩️</button>
+            ${own ? `
               <button type="button" class="chat-msg-tool" data-edit-comment="${escapeAttr(c.ID)}" title="Επεξεργασία">✏️</button>
               <button type="button" class="chat-msg-tool" data-del-comment="${escapeAttr(c.ID)}" title="Διαγραφή">🗑️</button>
-            </span>
-          ` : ''}
+            ` : ''}
+          </span>
         </div>
+        ${replyQuote}
         <div class="chat-msg-text" data-msg-text="${escapeAttr(c.ID)}">${linkify_(c['Κείμενο'] || '')}</div>
         <div class="chat-msg-ts">${formatChatTime_(c['Χρόνος'])}</div>
       </div>
@@ -2239,6 +2299,43 @@ function wireChatMsgTools_(){
   box.querySelectorAll('[data-del-comment]').forEach(btn => {
     btn.addEventListener('click', () => deleteComment_ui(btn.dataset.delComment));
   });
+  box.querySelectorAll('[data-reply-comment]').forEach(btn => {
+    btn.addEventListener('click', () => startReply_(btn.dataset.replyComment));
+  });
+  box.querySelectorAll('[data-jump-to]').forEach(el => {
+    el.addEventListener('click', () => jumpToComment_(el.dataset.jumpTo));
+  });
+}
+
+// ---- Απάντηση (παράθεση) σε συγκεκριμένο μήνυμα ----
+let REPLYING_TO_ = null;
+
+function startReply_(id){
+  const comment = LAST_CHAT_COMMENTS_.find(c => c.ID === id);
+  if (!comment) return;
+  REPLYING_TO_ = { id, name: comment['Όνομα'] || '', text: comment['Κείμενο'] || '' };
+  document.getElementById('chatReplyBarName').textContent = REPLYING_TO_.name;
+  document.getElementById('chatReplyBarText').textContent = REPLYING_TO_.text;
+  const bar = document.getElementById('chatReplyBar');
+  bar.style.display = 'flex';
+  document.getElementById('chatInput').focus();
+}
+
+function cancelReply_(){
+  REPLYING_TO_ = null;
+  document.getElementById('chatReplyBar').style.display = 'none';
+}
+document.getElementById('chatReplyBarCancel').addEventListener('click', cancelReply_);
+
+// Πατώντας πάνω σε ένα quoted απόσπασμα, πήγαινε (scroll + highlight) στο
+// αρχικό μήνυμα -- αν είναι ακόμα φορτωμένο στη λίστα.
+function jumpToComment_(id){
+  const el = document.querySelector(`.chat-msg[data-comment-id="${CSS.escape(id)}"]`);
+  if (!el) return;
+  el.scrollIntoView({ behavior:'smooth', block:'center' });
+  el.classList.remove('highlight-flash');
+  void el.offsetWidth; // επανεκκίνηση animation αν ξαναπατηθεί αμέσως
+  el.classList.add('highlight-flash');
 }
 
 function startEditComment_(id){
@@ -2304,6 +2401,7 @@ function closeChatModal(){
   if (CHAT_POLL_INTERVAL){ clearInterval(CHAT_POLL_INTERVAL); CHAT_POLL_INTERVAL = null; }
   CHAT_EXPEDITION_ID = null;
   EDITING_COMMENT_ID_ = null;
+  cancelReply_();
 }
 document.getElementById('chatModalClose').addEventListener('click', closeChatModal);
 
@@ -2324,6 +2422,13 @@ document.getElementById('chatForm').addEventListener('submit', async (e) => {
   input.value = '';
   triggerChatBurst_();
 
+  const replyPayload = REPLYING_TO_ ? {
+    replyToId: REPLYING_TO_.id,
+    replyToName: REPLYING_TO_.name,
+    replyToText: REPLYING_TO_.text,
+  } : {};
+  cancelReply_();
+
   // Εμφάνιση αισιόδοξα (optimistic): το μήνυμα φαίνεται ΑΜΕΣΩΣ, τοπικά,
   // πριν καν απαντήσει ο server -- αποφεύγει το διπλό ταξίδι (αποστολή,
   // μετά επαναφόρτωση όλης της λίστας) που έκανε την εμφάνιση να αργεί.
@@ -2331,12 +2436,15 @@ document.getElementById('chatForm').addEventListener('submit', async (e) => {
   LAST_CHAT_COMMENTS_ = [...LAST_CHAT_COMMENTS_, {
     ID: tempId, 'ID Εξόρμησης': CHAT_EXPEDITION_ID, 'Όνομα': MY_NAME,
     'Κείμενο': text, 'Χρόνος': new Date().toISOString(),
+    'ΑπάντησηΣε': replyPayload.replyToId || '',
+    'ΑπάντησηΌνομα': replyPayload.replyToName || '',
+    'ΑπάντησηΚείμενο': replyPayload.replyToText || '',
   }];
   renderChatMessages_(LAST_CHAT_COMMENTS_);
   box.scrollTop = box.scrollHeight;
 
   sendBtn.disabled = true;
-  const res = await apiPost({ action:'addComment', expeditionId: CHAT_EXPEDITION_ID, name: MY_NAME, text });
+  const res = await apiPost({ action:'addComment', expeditionId: CHAT_EXPEDITION_ID, name: MY_NAME, text, ...replyPayload });
   sendBtn.disabled = false;
 
   if (res.ok){
