@@ -296,6 +296,67 @@
     box-shadow: 0 20px 50px rgba(0,0,0,0.3);
   }
   #editModalOverlay .modal-box{ max-width:520px; }
+  #nameModalOverlay{ z-index:1200; }
+  #chatModalOverlay .modal-box.chat-modal-box{
+    max-width:480px; width:92%;
+    display:flex; flex-direction:column;
+    max-height:82vh;
+  }
+  .chat-welcome{
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; margin-bottom:12px;
+    border-radius:12px;
+    background: color-mix(in srgb, var(--accent) 14%, var(--surface-2));
+    border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  .chat-welcome-emoji{ font-size:24px; line-height:1; }
+  .chat-welcome-text{
+    font-family:Calibri, Carlito, sans-serif; font-weight:700; font-size:16.5px;
+    color: var(--text);
+  }
+  .chat-title{
+    font-size:15.5px !important; font-weight:600; color: var(--text-dim);
+    margin:0 0 12px !important;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .chat-messages{
+    flex:1; overflow-y:auto; min-height:160px; max-height:44vh;
+    display:flex; flex-direction:column; gap:10px;
+    padding:4px 2px; margin-bottom:12px;
+  }
+  .chat-empty{ text-align:center; color: var(--text-dim); font-size:13.7px; padding:24px 8px; }
+  .chat-msg{
+    max-width:82%;
+    padding:9px 12px;
+    border-radius:14px;
+    background: var(--surface-2);
+    border:1px solid var(--border);
+    align-self:flex-start;
+  }
+  .chat-msg.own{
+    align-self:flex-end;
+    background: color-mix(in srgb, var(--accent) 22%, var(--surface-2));
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  .chat-msg-name{
+    font-family:Calibri, Carlito, sans-serif; font-weight:700; font-size:13.3px;
+    color: var(--navy); margin-bottom:3px;
+  }
+  .chat-msg-text{
+    font-size:14.3px; line-height:1.42; color: var(--text);
+    white-space:pre-wrap; word-break:break-word;
+  }
+  .chat-msg-text a{ color: var(--navy); text-decoration:underline; }
+  .chat-msg-ts{
+    font-size:11px; color: var(--text-dim); margin-top:4px; text-align:right;
+  }
+  .chat-form{
+    display:flex; gap:8px; margin-bottom:10px;
+  }
+  .chat-form input{
+    flex:1; margin-bottom:0 !important;
+  }
+  .chat-form button{ white-space:nowrap; }
   .modal-box h3{ font-family:Calibri, Carlito, sans-serif; margin:0 0 14px; font-size:21.5px; }
   .modal-box select, .modal-box input{ width:100%; margin-bottom:10px; }
   .modal-actions{ display:flex; gap:10px; margin-top:6px; }
@@ -387,6 +448,22 @@
     color: var(--danger);
   }
   .btn-edit:hover{ opacity:0.85; }
+  .btn-chat{
+    position:relative;
+    background: color-mix(in srgb, var(--accent) 18%, var(--surface-2));
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+    color: var(--text);
+  }
+  .btn-chat:hover{ opacity:0.85; }
+  .btn-chat .chat-count-badge{
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:17px; height:17px; padding:0 4px;
+    border-radius:9px;
+    background: var(--danger);
+    color:#fff;
+    font-size:11px; font-weight:700;
+    margin-left:5px;
+  }
   .btn-maybe{
     background:#dceaf7;
     border-color:#dceaf7;
@@ -1295,6 +1372,26 @@
   </div>
 </div>
 
+<div id="chatModalOverlay" class="modal-overlay">
+  <div class="modal-box chat-modal-box">
+    <div class="chat-welcome">
+      <span class="chat-welcome-emoji">👋</span>
+      <span class="chat-welcome-text">Κόπιασε στην παρέα !!</span>
+    </div>
+    <h3 id="chatModalTitle" class="chat-title"></h3>
+    <div id="chatMessages" class="chat-messages">
+      <div class="chat-empty">Φόρτωση...</div>
+    </div>
+    <form id="chatForm" class="chat-form">
+      <input type="text" id="chatInput" placeholder="Γράψε κάτι... (μπορείς να επικολλήσεις και link)" autocomplete="off" maxlength="1000">
+      <button type="submit" class="btn-accent" id="chatSendBtn">Στείλε</button>
+    </form>
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost" id="chatModalClose">Κλείσιμο</button>
+    </div>
+  </div>
+</div>
+
 <div class="contour-bg">
   <svg viewBox="0 0 960 220" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M0 180 Q 120 100 240 150 T 480 130 T 720 160 T 960 110" stroke="#9c8fe0" stroke-width="1.4" fill="none"/>
@@ -1437,6 +1534,9 @@ function clearStatus(){ statusBanner.classList.remove('show'); }
 
 function apiGet(){
   return fetch(API_URL + '?action=list').then(r => r.json());
+}
+function apiGetComments(expeditionId){
+  return fetch(API_URL + '?action=listComments&expeditionId=' + encodeURIComponent(expeditionId)).then(r => r.json());
 }
 function apiPost(payload){
   // text/plain αποφεύγει το CORS preflight στο Apps Script
@@ -1620,6 +1720,9 @@ function wireCardEvents(container){
   });
   container.querySelectorAll('[data-edit]').forEach(btn => {
     btn.addEventListener('click', () => openEditModal(btn.dataset.edit));
+  });
+  container.querySelectorAll('[data-chat]').forEach(btn => {
+    btn.addEventListener('click', () => openChatModal(btn.dataset.chat, btn.dataset.chatTitle));
   });
   container.querySelectorAll('[data-del]').forEach(btn => {
     btn.addEventListener('click', () => onDelete(btn.dataset.del));
@@ -1875,6 +1978,7 @@ function cardHtml(r, today){
 
   const noDateClass = dt ? '' : 'no-date';
   const noDateBadge = dt ? '' : '<span class="tag no-date-tag">🎒 Πρόταση Summit Squad</span>';
+  const commentCount = parseInt(r['ΑριθμόςΣχολίων'], 10) || 0;
 
   return `
     <div class="card ${isPast ? 'past' : ''} ${urgentClass} ${noDateClass}" id="exp-${r.ID}">
@@ -1897,6 +2001,7 @@ function cardHtml(r, today){
       <div class="card-actions">
         <button class="btn-ghost go-btn ${iAmIn ? 'active' : ''}" data-go="${r.ID}">${iAmIn ? '✓ Θα έρθω' : 'Θα έρθω'}</button>
         <button class="btn-maybe ${iAmMaybe ? 'active' : ''}" data-maybe="${r.ID}">${iAmMaybe ? '✓ Το σκέφτομαι' : 'Το σκέφτομαι'}</button>
+        <button class="btn-chat" data-chat="${r.ID}" data-chat-title="${escapeAttr(title)}">💬 Σχόλια${commentCount > 0 ? `<span class="chat-count-badge">${commentCount}</span>` : ''}</button>
         <button class="btn-edit" data-edit="${r.ID}">Επεξεργασία</button>
         ${isAdmin() ? `<button class="btn-danger" data-del="${r.ID}">Διαγραφή</button>` : ''}
       </div>
@@ -1980,6 +2085,110 @@ async function onMaybe(id){
     showStatus('Κάτι πήγε στραβά.');
   }
 }
+
+// ---- Chat σχολίων ανά εξόρμηση ----
+let CHAT_EXPEDITION_ID = null;
+let CHAT_POLL_INTERVAL = null;
+
+// Μετατρέπει http(s) links μέσα στο κείμενο σε clickable links. Δουλεύει
+// πάνω σε ήδη escaped κείμενο, ώστε να μην ανοίγει τρύπα για HTML injection.
+function linkify_(text){
+  const escaped = escapeHtml(text);
+  return escaped.replace(/(https?:\/\/[^\s<]+)/g, (url) => {
+    const trailingMatch = url.match(/[).,!?;:]+$/);
+    let clean = url, trailing = '';
+    if (trailingMatch){
+      trailing = trailingMatch[0];
+      clean = url.slice(0, -trailing.length);
+    }
+    return `<a href="${clean}" target="_blank" rel="noopener">${clean}</a>${trailing}`;
+  });
+}
+
+function formatChatTime_(iso){
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${dd}/${mm} ${hh}:${mi}`;
+}
+
+async function openChatModal(expeditionId, title){
+  CHAT_EXPEDITION_ID = expeditionId;
+  document.getElementById('chatModalTitle').textContent = title || '';
+  document.getElementById('chatMessages').innerHTML = '<div class="chat-empty">Φόρτωση...</div>';
+  document.getElementById('chatModalOverlay').classList.add('show');
+  await loadChatMessages_();
+  // Ζωντανή ενημέρωση όσο το chat είναι ανοιχτό.
+  if (CHAT_POLL_INTERVAL) clearInterval(CHAT_POLL_INTERVAL);
+  CHAT_POLL_INTERVAL = setInterval(loadChatMessages_, 15000);
+}
+
+async function loadChatMessages_(){
+  if (!CHAT_EXPEDITION_ID) return;
+  try {
+    const comments = await apiGetComments(CHAT_EXPEDITION_ID);
+    if (!Array.isArray(comments)) return;
+    renderChatMessages_(comments);
+  } catch(e){ /* σιωπηλή αποτυχία -- διατηρεί ό,τι ήδη φαίνεται στην οθόνη */ }
+}
+
+function renderChatMessages_(comments){
+  const box = document.getElementById('chatMessages');
+  const wasNearBottom = (box.scrollHeight - box.scrollTop - box.clientHeight) < 40;
+  if (comments.length === 0){
+    box.innerHTML = '<div class="chat-empty">Κανένα σχόλιο ακόμα — γράψε το πρώτο! 💬</div>';
+    return;
+  }
+  box.innerHTML = comments.map(c => {
+    const own = MY_NAME && c['Όνομα'] === MY_NAME;
+    return `
+      <div class="chat-msg ${own ? 'own' : ''}">
+        <div class="chat-msg-name">${escapeHtml(c['Όνομα'] || '')}</div>
+        <div class="chat-msg-text">${linkify_(c['Κείμενο'] || '')}</div>
+        <div class="chat-msg-ts">${formatChatTime_(c['Χρόνος'])}</div>
+      </div>
+    `;
+  }).join('');
+  if (wasNearBottom) box.scrollTop = box.scrollHeight;
+}
+
+function closeChatModal(){
+  document.getElementById('chatModalOverlay').classList.remove('show');
+  if (CHAT_POLL_INTERVAL){ clearInterval(CHAT_POLL_INTERVAL); CHAT_POLL_INTERVAL = null; }
+  CHAT_EXPEDITION_ID = null;
+}
+document.getElementById('chatModalClose').addEventListener('click', closeChatModal);
+
+document.getElementById('chatForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!CHAT_EXPEDITION_ID) return;
+  if (!MY_NAME){
+    const name = await askName();
+    if (!name) return;
+    MY_NAME = name;
+  }
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+  const sendBtn = document.getElementById('chatSendBtn');
+  sendBtn.disabled = true;
+  const res = await apiPost({ action:'addComment', expeditionId: CHAT_EXPEDITION_ID, name: MY_NAME, text });
+  sendBtn.disabled = false;
+  if (res.ok){
+    input.value = '';
+    await loadChatMessages_();
+    const box = document.getElementById('chatMessages');
+    box.scrollTop = box.scrollHeight;
+    // Ενημερώνει και το badge αριθμού σχολίων στην κάρτα (από πίσω),
+    // χωρίς να πειράξει τα τρέχοντα φίλτρα.
+    pollForUpdates();
+  } else {
+    showStatus('Δεν ήταν δυνατή η αποστολή του σχολίου.');
+  }
+});
 
 // ---- Επεξεργασία εξόρμησης ----
 const editModalOverlay = document.getElementById('editModalOverlay');
