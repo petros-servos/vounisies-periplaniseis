@@ -344,22 +344,22 @@
     margin-bottom:3px;
   }
   .chat-msg-name{
-    font-family:Calibri, Carlito, sans-serif; font-weight:700; font-size:13.3px;
+    font-family:Calibri, Carlito, sans-serif; font-weight:700; font-size:14.8px;
   }
   .chat-msg-tools{ display:flex; gap:4px; flex-shrink:0; }
   .chat-msg-tool{
     background:transparent; border:none; cursor:pointer;
-    font-size:13px; padding:2px 3px; border-radius:6px;
+    font-size:14px; padding:2px 3px; border-radius:6px;
     opacity:0.7;
   }
   .chat-msg-tool:hover{ opacity:1; background: var(--surface); }
   .chat-msg-text{
-    font-size:14.3px; line-height:1.42; color: var(--text);
+    font-size:16.5px; line-height:1.48; color: var(--text);
     white-space:pre-wrap; word-break:break-word;
   }
   .chat-msg-text a{ color: var(--navy); text-decoration:underline; }
   .chat-msg-ts{
-    font-size:11px; color: var(--text-dim); margin-top:4px; text-align:right;
+    font-size:12px; color: var(--text-dim); margin-top:4px; text-align:right;
   }
   .chat-edit-input{
     width:100%; margin-bottom:6px !important;
@@ -2219,7 +2219,14 @@ async function loadChatMessages_(){
     // ξεπερασμένη (μπορεί να έφτασε καθυστερημένα, εκτός σειράς) -- αγνόησέ
     // την, αλλιώς κινδυνεύει να σβήσει πιο φρέσκα δεδομένα.
     if (seq !== CHAT_LOAD_SEQ_) return;
+    // Αν τα δεδομένα είναι ΙΔΙΑ με ό,τι ήδη δείχνουμε, μην ξαναφτιάξεις τη
+    // λίστα -- αυτό ήταν η αιτία του "τρεμουλού" σε κάθε ζωντανό refresh
+    // (πλήρες rebuild του DOM ακόμα κι όταν δεν είχε αλλάξει τίποτα). Το
+    // ίδιο το φόρτωμα (fetch) συνεχίζει να γίνεται κανονικά κάθε 3'',
+    // απλά δεν αγγίζουμε πια την οθόνη όταν δεν χρειάζεται.
+    const changed = JSON.stringify(comments) !== JSON.stringify(LAST_CHAT_COMMENTS_);
     LAST_CHAT_COMMENTS_ = comments;
+    if (!changed) return;
     // Όσο επεξεργάζεσαι ένα μήνυμα, το ζωντανό refresh δεν ξαναφτιάχνει τη
     // λίστα -- θα διέγραφε το πεδίο επεξεργασίας. Το cache πάντως ενημερώνεται
     // κανονικά από πίσω, ώστε μόλις τελειώσεις να δεις τα πάντα φρέσκα.
