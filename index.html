@@ -2175,7 +2175,7 @@ async function openChatModal(expeditionId, title){
   await loadChatMessages_();
   // Ζωντανή ενημέρωση όσο το chat είναι ανοιχτό.
   if (CHAT_POLL_INTERVAL) clearInterval(CHAT_POLL_INTERVAL);
-  CHAT_POLL_INTERVAL = setInterval(loadChatMessages_, 15000);
+  CHAT_POLL_INTERVAL = setInterval(loadChatMessages_, 5000);
 }
 
 let LAST_CHAT_COMMENTS_ = [];
