@@ -331,6 +331,7 @@
     border-radius:14px;
     background: var(--surface-2);
     border:1px solid var(--border);
+    border-left:4px solid var(--border);
     align-self:flex-start;
   }
   .chat-msg.own{
@@ -338,10 +339,20 @@
     background: color-mix(in srgb, var(--accent) 22%, var(--surface-2));
     border-color: color-mix(in srgb, var(--accent) 45%, transparent);
   }
+  .chat-msg-head{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    margin-bottom:3px;
+  }
   .chat-msg-name{
     font-family:Calibri, Carlito, sans-serif; font-weight:700; font-size:13.3px;
-    color: var(--navy); margin-bottom:3px;
   }
+  .chat-msg-tools{ display:flex; gap:4px; flex-shrink:0; }
+  .chat-msg-tool{
+    background:transparent; border:none; cursor:pointer;
+    font-size:13px; padding:2px 3px; border-radius:6px;
+    opacity:0.7;
+  }
+  .chat-msg-tool:hover{ opacity:1; background: var(--surface); }
   .chat-msg-text{
     font-size:14.3px; line-height:1.42; color: var(--text);
     white-space:pre-wrap; word-break:break-word;
@@ -350,6 +361,12 @@
   .chat-msg-ts{
     font-size:11px; color: var(--text-dim); margin-top:4px; text-align:right;
   }
+  .chat-edit-input{
+    width:100%; margin-bottom:6px !important;
+    font-size:14px; padding:6px 8px;
+  }
+  .chat-edit-actions{ display:flex; gap:6px; justify-content:flex-end; }
+  .chat-edit-actions button{ padding:5px 12px; font-size:13px; }
   .chat-form{
     display:flex; gap:8px; margin-bottom:10px;
   }
@@ -2001,7 +2018,7 @@ function cardHtml(r, today){
       <div class="card-actions">
         <button class="btn-ghost go-btn ${iAmIn ? 'active' : ''}" data-go="${r.ID}">${iAmIn ? '✓ Θα έρθω' : 'Θα έρθω'}</button>
         <button class="btn-maybe ${iAmMaybe ? 'active' : ''}" data-maybe="${r.ID}">${iAmMaybe ? '✓ Το σκέφτομαι' : 'Το σκέφτομαι'}</button>
-        <button class="btn-chat" data-chat="${r.ID}" data-chat-title="${escapeAttr(title)}">💬 Σχόλια${commentCount > 0 ? `<span class="chat-count-badge">${commentCount}</span>` : ''}</button>
+        <button class="btn-chat" data-chat="${r.ID}" data-chat-title="${escapeAttr(title)}">💬 Κους Κους${commentCount > 0 ? `<span class="chat-count-badge">${commentCount}</span>` : ''}</button>
         <button class="btn-edit" data-edit="${r.ID}">Επεξεργασία</button>
         ${isAdmin() ? `<button class="btn-danger" data-del="${r.ID}">Διαγραφή</button>` : ''}
       </div>
@@ -2115,6 +2132,15 @@ function formatChatTime_(iso){
   return `${dd}/${mm} ${hh}:${mi}`;
 }
 
+// Κάθε συμμετέχων παίρνει ένα σταθερό χρώμα (με βάση το όνομά του), ώστε
+// τα σχόλιά του να ξεχωρίζουν οπτικά μέσα στο κους κους.
+const CHAT_NAME_PALETTE_ = ['#c9822f', '#3f7d4c', '#7f93d6', '#9c8fe0', '#cc5b6f', '#2f9e8f', '#b8860b', '#6a5acd'];
+function colorForName_(name){
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  return CHAT_NAME_PALETTE_[hash % CHAT_NAME_PALETTE_.length];
+}
+
 async function openChatModal(expeditionId, title){
   CHAT_EXPEDITION_ID = expeditionId;
   document.getElementById('chatModalTitle').textContent = title || '';
@@ -2126,11 +2152,14 @@ async function openChatModal(expeditionId, title){
   CHAT_POLL_INTERVAL = setInterval(loadChatMessages_, 15000);
 }
 
+let LAST_CHAT_COMMENTS_ = [];
+
 async function loadChatMessages_(){
   if (!CHAT_EXPEDITION_ID) return;
   try {
     const comments = await apiGetComments(CHAT_EXPEDITION_ID);
     if (!Array.isArray(comments)) return;
+    LAST_CHAT_COMMENTS_ = comments;
     renderChatMessages_(comments);
   } catch(e){ /* σιωπηλή αποτυχία -- διατηρεί ό,τι ήδη φαίνεται στην οθόνη */ }
 }
@@ -2139,20 +2168,87 @@ function renderChatMessages_(comments){
   const box = document.getElementById('chatMessages');
   const wasNearBottom = (box.scrollHeight - box.scrollTop - box.clientHeight) < 40;
   if (comments.length === 0){
-    box.innerHTML = '<div class="chat-empty">Κανένα σχόλιο ακόμα — γράψε το πρώτο! 💬</div>';
+    box.innerHTML = '<div class="chat-empty">Κανένα κους κους ακόμα — γράψε το πρώτο! 💬</div>';
     return;
   }
   box.innerHTML = comments.map(c => {
     const own = MY_NAME && c['Όνομα'] === MY_NAME;
+    const color = colorForName_(c['Όνομα'] || '');
     return `
-      <div class="chat-msg ${own ? 'own' : ''}">
-        <div class="chat-msg-name">${escapeHtml(c['Όνομα'] || '')}</div>
-        <div class="chat-msg-text">${linkify_(c['Κείμενο'] || '')}</div>
+      <div class="chat-msg ${own ? 'own' : ''}" style="border-left-color:${color};" data-comment-id="${escapeAttr(c.ID)}">
+        <div class="chat-msg-head">
+          <span class="chat-msg-name" style="color:${color};">${escapeHtml(c['Όνομα'] || '')}</span>
+          ${own ? `
+            <span class="chat-msg-tools">
+              <button type="button" class="chat-msg-tool" data-edit-comment="${escapeAttr(c.ID)}" title="Επεξεργασία">✏️</button>
+              <button type="button" class="chat-msg-tool" data-del-comment="${escapeAttr(c.ID)}" title="Διαγραφή">🗑️</button>
+            </span>
+          ` : ''}
+        </div>
+        <div class="chat-msg-text" data-msg-text="${escapeAttr(c.ID)}">${linkify_(c['Κείμενο'] || '')}</div>
         <div class="chat-msg-ts">${formatChatTime_(c['Χρόνος'])}</div>
       </div>
     `;
   }).join('');
   if (wasNearBottom) box.scrollTop = box.scrollHeight;
+  wireChatMsgTools_();
+}
+
+function wireChatMsgTools_(){
+  const box = document.getElementById('chatMessages');
+  box.querySelectorAll('[data-edit-comment]').forEach(btn => {
+    btn.addEventListener('click', () => startEditComment_(btn.dataset.editComment));
+  });
+  box.querySelectorAll('[data-del-comment]').forEach(btn => {
+    btn.addEventListener('click', () => deleteComment_ui(btn.dataset.delComment));
+  });
+}
+
+function startEditComment_(id){
+  const comment = LAST_CHAT_COMMENTS_.find(c => c.ID === id);
+  if (!comment) return;
+  const textEl = document.querySelector(`.chat-msg-text[data-msg-text="${CSS.escape(id)}"]`);
+  if (!textEl) return;
+  textEl.innerHTML = `
+    <input type="text" class="chat-edit-input" value="${escapeAttr(comment['Κείμενο'] || '')}" maxlength="1000">
+    <div class="chat-edit-actions">
+      <button type="button" class="btn-ghost chat-edit-cancel">Άκυρο</button>
+      <button type="button" class="btn-accent chat-edit-save">Αποθήκευση</button>
+    </div>
+  `;
+  const input = textEl.querySelector('.chat-edit-input');
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+  textEl.querySelector('.chat-edit-cancel').addEventListener('click', () => {
+    renderChatMessages_(LAST_CHAT_COMMENTS_);
+  });
+  const save = async () => {
+    const newText = input.value.trim();
+    if (!newText) return;
+    const res = await apiPost({ action:'updateComment', id, name: MY_NAME, text: newText });
+    if (res.ok){
+      await loadChatMessages_();
+      pollForUpdates();
+    } else {
+      showStatus('Δεν ήταν δυνατή η ενημέρωση του κους κους.');
+    }
+  };
+  textEl.querySelector('.chat-edit-save').addEventListener('click', save);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter'){ e.preventDefault(); save(); }
+    if (e.key === 'Escape'){ renderChatMessages_(LAST_CHAT_COMMENTS_); }
+  });
+}
+
+async function deleteComment_ui(id){
+  if (!confirm('Να διαγραφεί αυτό το κους κους;')) return;
+  const res = await apiPost({ action:'deleteComment', id, name: MY_NAME });
+  if (res.ok){
+    await loadChatMessages_();
+    pollForUpdates();
+  } else {
+    showStatus('Δεν ήταν δυνατή η διαγραφή του κους κους.');
+  }
 }
 
 function closeChatModal(){
