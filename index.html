@@ -185,6 +185,7 @@
     .theme-toggle{ width:38px; height:38px; font-size:17px; order:2; }
     .notif-bell{ width:38px; height:38px; font-size:17px; }
     .notif-panel{ width:min(88vw, 300px); }
+    .comment-notif-bell{ width:38px; height:38px; font-size:16px; }
   }
 
   @keyframes shimmer{
@@ -275,6 +276,69 @@
     display:flex; align-items:center; justify-content:center;
   }
   .notif-dismiss:hover{ background: var(--danger-soft); color: var(--danger); }
+
+  .comment-notif-bell{
+    width:46px; height:46px; border-radius:50%;
+    background: var(--surface); border:1px solid color-mix(in srgb, #2563a8 40%, var(--border));
+    font-size:20px; display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 6px 18px rgba(34,53,38,0.18);
+    position:relative; padding:0;
+  }
+  .comment-notif-badge{
+    position:absolute; top:-4px; right:-4px;
+    background: #2563a8; color:#fff;
+    font-family:Calibri, Carlito, sans-serif;
+    font-size:12.4px; font-weight:700;
+    min-width:18px; height:18px; border-radius:9px;
+    display:flex; align-items:center; justify-content:center;
+    padding:0 4px;
+    display:none;
+  }
+  .comment-notif-badge.show{ display:flex; }
+  .comment-notif-panel{
+    display:none;
+    position:absolute; top:56px; right:0;
+    width:min(88vw, 300px); max-height:360px; overflow-y:auto;
+    background: var(--surface);
+    background: color-mix(in srgb, var(--surface) 82%, transparent);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border:1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 10px 30px rgba(34,53,38,0.22);
+  }
+  .comment-notif-panel.open{ display:block; }
+  .comment-notif-panel-header{
+    font-family:Calibri, Carlito, sans-serif; font-weight:600; font-size:16.9px;
+    padding:14px 16px; border-bottom:1px solid var(--border);
+  }
+  .comment-notif-list{ padding:6px; }
+  .comment-notif-empty{ padding:16px; text-align:center; color: var(--text-dim); font-size:14.7px; }
+  .comment-notif-item{
+    display:block; padding:10px 30px 10px 10px; border-radius:9px;
+    text-decoration:none; color: var(--text);
+    font-size:14.7px; line-height:1.4;
+    position:relative;
+  }
+  .comment-notif-item:hover{ background: var(--surface-2); }
+  .comment-notif-item b{ color: #2563a8; display:block; font-size:15.3px; margin-bottom:1px; }
+  .comment-notif-item .comment-notif-expedition{
+    display:block; font-size:12.5px; color: var(--text-dim); margin-bottom:2px;
+  }
+  .comment-notif-item.unread{ background: color-mix(in srgb, #2563a8 10%, transparent); }
+  .comment-notif-item.unread::before{
+    content:''; position:absolute; top:14px; left:-2px;
+    width:7px; height:7px; border-radius:50%; background: #2563a8;
+  }
+  .comment-notif-ts{ display:block; margin-top:4px; font-size:12.2px; color: var(--text-dim); }
+  .comment-notif-dismiss{
+    position:absolute; top:8px; right:6px;
+    width:22px; height:22px; border-radius:50%;
+    border:none; background:transparent; color: var(--text-dim);
+    font-size:15px; line-height:1; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .comment-notif-dismiss:hover{ background: color-mix(in srgb, #2563a8 18%, transparent); color: #2563a8; }
 
   /* ---- Name modal ---- */
   .modal-overlay{
@@ -1192,6 +1256,18 @@
     </div>
   </div>
   </div>
+  <div style="position:relative;" id="commentNotifWrap">
+  <button id="commentNotifBell" class="comment-notif-bell" title="Νέα σχόλια" type="button">
+    💬
+    <span id="commentNotifBadge" class="comment-notif-badge">0</span>
+  </button>
+  <div id="commentNotifPanel" class="comment-notif-panel">
+    <div class="comment-notif-panel-header">Νέα σχόλια</div>
+    <div id="commentNotifList" class="comment-notif-list">
+      <div class="comment-notif-empty">Καμία πρόσφατη προσθήκη</div>
+    </div>
+  </div>
+  </div>
 </div>
 
 <div id="nameModalOverlay" class="modal-overlay">
@@ -1603,6 +1679,9 @@ function apiGet(){
 function apiGetComments(expeditionId){
   return fetch(API_URL + '?action=listComments&expeditionId=' + encodeURIComponent(expeditionId)).then(r => r.json());
 }
+function apiGetRecentComments(){
+  return fetch(API_URL + '?action=recentComments').then(r => r.json());
+}
 function apiPost(payload){
   // text/plain αποφεύγει το CORS preflight στο Apps Script
   return fetch(API_URL, {
@@ -1647,6 +1726,7 @@ async function load(){
     refreshView();
     renderNotifs();
     renderSSNotifs();
+    refreshCommentNotifs();
   } catch(err){
     showStatus('Δεν ήταν δυνατή η σύνδεση με το Google Sheet. Ελέγξτε ότι το Apps Script έχει γίνει deploy με πρόσβαση "Anyone".');
     listArea.innerHTML = '';
@@ -2847,6 +2927,84 @@ document.addEventListener('click', (e) => {
   if (wrap && !wrap.contains(e.target)) document.getElementById('ssNotifPanel').classList.remove('open');
 });
 
+// ---- Καμπανάκι "Νέα σχόλια" -- τα 5 πιο πρόσφατα σχόλια, από όλες τις
+// εξορμήσεις. Ίδιο μοντέλο με τα άλλα δύο καμπανάκια: το ΠΕΡΙΕΧΟΜΕΝΟ είναι
+// κοινό/server-side (μέσω της χρονοσήμανσης στο tab Σχόλια), το "διαβασμένο"
+// και το "×" παραμένουν προσωπικά, τοπικά σε κάθε συσκευή.
+const COMMENT_NOTIF_READ_KEY = 'vp_comment_notif_read_ids_v1';
+const COMMENT_NOTIF_DISMISSED_KEY = 'vp_comment_notif_dismissed_ids_v1';
+let COMMENT_NOTIF_READ_IDS = loadIdSet_(COMMENT_NOTIF_READ_KEY);
+let COMMENT_NOTIF_DISMISSED_IDS = loadIdSet_(COMMENT_NOTIF_DISMISSED_KEY);
+let LAST_RECENT_COMMENTS_ = [];
+
+async function refreshCommentNotifs(){
+  try {
+    const data = await apiGetRecentComments();
+    if (!Array.isArray(data)) return;
+    LAST_RECENT_COMMENTS_ = data;
+    renderCommentNotifs();
+  } catch(e){ /* σιωπηλή αποτυχία -- διατηρεί ό,τι ήδη φαίνεται στην οθόνη */ }
+}
+
+function renderCommentNotifs(){
+  const badge = document.getElementById('commentNotifBadge');
+  const list = document.getElementById('commentNotifList');
+  const items = LAST_RECENT_COMMENTS_.filter(c => !COMMENT_NOTIF_DISMISSED_IDS.has(c.id));
+  if (items.length === 0){
+    badge.classList.remove('show');
+    list.innerHTML = '<div class="comment-notif-empty">Καμία πρόσφατη προσθήκη</div>';
+    return;
+  }
+  const unread = items.filter(c => !COMMENT_NOTIF_READ_IDS.has(c.id)).length;
+  if (unread > 0){ badge.textContent = unread; badge.classList.add('show'); }
+  else { badge.classList.remove('show'); }
+  list.innerHTML = items.map(c => {
+    const read = COMMENT_NOTIF_READ_IDS.has(c.id);
+    return `
+      <a href="#" class="comment-notif-item ${read ? '' : 'unread'}" data-comment-notif-id="${escapeAttr(c.id)}" data-expedition-id="${escapeAttr(c.expeditionId)}">
+        <span class="comment-notif-expedition">${escapeHtml(c.expeditionTitle || 'Εξόρμηση')}</span>
+        <b>${escapeHtml(c.name || '')}</b>${escapeHtml(c.text || '')}
+        <span class="comment-notif-ts">${formatNotifTime_(c.ts)}</span>
+        <button type="button" class="comment-notif-dismiss" data-comment-dismiss-id="${escapeAttr(c.id)}" title="Αφαίρεση ειδοποίησης">×</button>
+      </a>
+    `;
+  }).join('');
+  list.querySelectorAll('.comment-notif-item').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      goToCommentNotif(el.dataset.commentNotifId, el.dataset.expeditionId);
+    });
+  });
+  list.querySelectorAll('.comment-notif-dismiss').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      COMMENT_NOTIF_DISMISSED_IDS.add(el.dataset.commentDismissId);
+      saveIdSet_(COMMENT_NOTIF_DISMISSED_KEY, COMMENT_NOTIF_DISMISSED_IDS);
+      renderCommentNotifs();
+    });
+  });
+}
+
+async function goToCommentNotif(commentId, expeditionId){
+  COMMENT_NOTIF_READ_IDS.add(commentId);
+  saveIdSet_(COMMENT_NOTIF_READ_KEY, COMMENT_NOTIF_READ_IDS);
+  renderCommentNotifs();
+  document.getElementById('commentNotifPanel').classList.remove('open');
+  const row = ROWS.find(r => r.ID === expeditionId);
+  const title = row ? (row['Σχόλια'] || 'Εξόρμηση') : 'Εξόρμηση';
+  await openChatModal(expeditionId, title);
+  setTimeout(() => jumpToComment_(commentId), 300);
+}
+
+document.getElementById('commentNotifBell').addEventListener('click', () => {
+  document.getElementById('commentNotifPanel').classList.toggle('open');
+});
+document.addEventListener('click', (e) => {
+  const wrap = document.getElementById('commentNotifWrap');
+  if (wrap && !wrap.contains(e.target)) document.getElementById('commentNotifPanel').classList.remove('open');
+});
+
 // Αποφεύγει άσκοπα ξανα-renders όταν το background poll δεν φέρνει τίποτα
 // καινούργιο (η σύγκριση γίνεται πάνω στα ίδια τα δεδομένα, όχι σε τοπικό
 // tracking, άρα δουλεύει το ίδιο σε κάθε συσκευή/browser).
@@ -2858,19 +3016,22 @@ async function pollForUpdates(){
     const data = await apiGet();
     if (data.error || !Array.isArray(data)) return;
     const snapshot = JSON.stringify(data);
-    if (snapshot === LAST_POLL_SNAPSHOT_) return; // τίποτα δεν άλλαξε
-    LAST_POLL_SNAPSHOT_ = snapshot;
-    ROWS = data;
-    buildFilterOptions();
-    refreshView();
-    renderNotifs();
-    renderSSNotifs();
+    if (snapshot !== LAST_POLL_SNAPSHOT_){
+      LAST_POLL_SNAPSHOT_ = snapshot;
+      ROWS = data;
+      buildFilterOptions();
+      refreshView();
+      renderNotifs();
+      renderSSNotifs();
+    }
   } catch(err){ /* σιωπηλή αποτυχία στο background poll */ }
+  refreshCommentNotifs();
 }
 
 // Αρχική απεικόνιση των ειδοποιήσεων κατά τη φόρτωση της σελίδας.
 renderNotifs();
 renderSSNotifs();
+renderCommentNotifs();
 
 setInterval(pollForUpdates, 20000);
 
