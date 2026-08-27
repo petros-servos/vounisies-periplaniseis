@@ -2278,6 +2278,11 @@ async function openChatModal(expeditionId, title){
   CHAT_EXPEDITION_ID = expeditionId;
   document.getElementById('chatModalTitle').textContent = title || '';
   document.getElementById('chatMessages').innerHTML = '<div class="chat-empty">Φόρτωση...</div>';
+  // Εξαναγκάζει πλήρες render στο επόμενο loadChatMessages_, ακόμα κι αν
+  // τα δεδομένα είναι ίδια μ' αυτά που είχαμε ήδη (π.χ. ξανανοίγεις το ίδιο
+  // chat). Χωρίς αυτό, η βελτιστοποίηση "μην ξαναχτίζεις αν δεν άλλαξε
+  // τίποτα" άφηνε το "Φόρτωση..." εκεί για πάντα.
+  FORCE_NEXT_CHAT_RENDER_ = true;
   document.getElementById('chatModalOverlay').classList.add('show');
   await loadChatMessages_();
   // Ζωντανή ενημέρωση όσο το chat είναι ανοιχτό.
@@ -2288,6 +2293,7 @@ async function openChatModal(expeditionId, title){
 let LAST_CHAT_COMMENTS_ = [];
 let EDITING_COMMENT_ID_ = null;
 let CHAT_LOAD_SEQ_ = 0;
+let FORCE_NEXT_CHAT_RENDER_ = false;
 
 async function loadChatMessages_(){
   if (!CHAT_EXPEDITION_ID) return;
@@ -2304,7 +2310,8 @@ async function loadChatMessages_(){
     // (πλήρες rebuild του DOM ακόμα κι όταν δεν είχε αλλάξει τίποτα). Το
     // ίδιο το φόρτωμα (fetch) συνεχίζει να γίνεται κανονικά κάθε 3'',
     // απλά δεν αγγίζουμε πια την οθόνη όταν δεν χρειάζεται.
-    const changed = JSON.stringify(comments) !== JSON.stringify(LAST_CHAT_COMMENTS_);
+    const changed = FORCE_NEXT_CHAT_RENDER_ || JSON.stringify(comments) !== JSON.stringify(LAST_CHAT_COMMENTS_);
+    FORCE_NEXT_CHAT_RENDER_ = false;
     LAST_CHAT_COMMENTS_ = comments;
     if (!changed) return;
     // Όσο επεξεργάζεσαι ένα μήνυμα, το ζωντανό refresh δεν ξαναφτιάχνει τη
