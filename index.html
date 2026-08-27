@@ -315,16 +315,19 @@
   .comment-notif-list{ padding:6px; }
   .comment-notif-empty{ padding:16px; text-align:center; color: var(--text-dim); font-size:14.7px; }
   .comment-notif-item{
-    display:block; padding:12px 32px 12px 12px; border-radius:9px;
+    display:block; padding:12px 32px 12px 12px;
     text-decoration:none; color: var(--text);
     font-size:15.5px; line-height:1.45;
     position:relative;
+    border-bottom:1px solid var(--border);
   }
+  .comment-notif-item:last-child{ border-bottom:none; }
   .comment-notif-item:hover{ background: var(--surface-2); }
   .comment-notif-item .comment-notif-expedition{
     display:block; font-family:Calibri, Carlito, sans-serif; font-weight:700;
     font-size:17px; color: #2563a8; margin-bottom:3px;
   }
+  .comment-notif-item .comment-notif-expedition.is-ss{ color: var(--moss); }
   .comment-notif-item b{
     display:block; font-weight:600; font-size:15px; color: var(--text); margin-bottom:2px;
   }
@@ -335,7 +338,7 @@
   .comment-notif-item.unread{ background: color-mix(in srgb, #2563a8 10%, transparent); }
   .comment-notif-item.unread::before{
     content:''; position:absolute; top:16px; left:-2px;
-    width:7px; height:7px; border-radius:50%; background: #2563a8;
+    width:7px; height:7px; border-radius:50%; background: #8b5cf6;
   }
   .comment-notif-ts{ display:block; margin-top:6px; font-size:13px; color: var(--text-dim); }
   .comment-notif-dismiss{
@@ -373,6 +376,12 @@
     display:flex; flex-direction:column;
     max-height:82vh;
   }
+  @media (min-width: 768px){
+    #chatModalOverlay .modal-box.chat-modal-box{
+      max-width:720px;
+      max-height:88vh;
+    }
+  }
   .chat-welcome{
     display:flex; align-items:center; gap:10px;
     padding:10px 12px; margin-bottom:12px;
@@ -394,6 +403,9 @@
     flex:1; overflow-y:auto; min-height:160px; max-height:44vh;
     display:flex; flex-direction:column; gap:10px;
     padding:4px 2px; margin-bottom:12px;
+  }
+  @media (min-width: 768px){
+    .chat-messages{ max-height:58vh; }
   }
   .chat-empty{ text-align:center; color: var(--text-dim); font-size:13.7px; padding:24px 8px; }
   .chat-msg{
@@ -2998,9 +3010,11 @@ function renderCommentNotifs(){
     const unreadCount = g.items.filter(it => !COMMENT_NOTIF_READ_IDS.has(it.id)).length;
     const latest = g.items[g.items.length - 1];
     const countLabel = g.items.length === 1 ? '1 νέο σχόλιο' : `${g.items.length} νέα σχόλια`;
+    const expRow = ROWS.find(r => r.ID === g.expeditionId);
+    const isSS = expRow ? isSSRow_(expRow) : false;
     return `
       <a href="#" class="comment-notif-item ${unreadCount > 0 ? 'unread' : ''}" data-group-expedition="${escapeAttr(g.expeditionId)}">
-        <span class="comment-notif-expedition">${escapeHtml(g.expeditionTitle || 'Εξόρμηση')}</span>
+        <span class="comment-notif-expedition ${isSS ? 'is-ss' : ''}">${escapeHtml(g.expeditionTitle || 'Εξόρμηση')}</span>
         <b>${escapeHtml(countLabel)}</b>
         <span class="comment-notif-preview">${escapeHtml((latest.name || '') + (latest.text ? (': ' + latest.text) : ''))}</span>
         <span class="comment-notif-ts">${formatNotifTime_(latest.ts)}</span>
