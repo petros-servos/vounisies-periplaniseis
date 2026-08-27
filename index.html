@@ -749,18 +749,16 @@
 
   .card{
     position:relative;
-    background: var(--surface);
+    background: color-mix(in srgb, var(--surface) 55%, #000 15%);
     border:1px solid var(--border);
     border-radius: var(--radius);
-    padding:18px 20px;
-    display:grid;
-    grid-template-columns: 78px 1fr auto;
-    gap:18px;
-    align-items:center;
     box-shadow: var(--card-shadow);
-    transition: transform .45s cubic-bezier(.25,1.4,.4,1), box-shadow .4s ease, border-color .3s ease, background .35s ease;
+    transition: box-shadow .2s ease;
     animation: cardEnter .4s ease both;
     z-index:1;
+  }
+  html[data-theme="dark"] .card{
+    background: color-mix(in srgb, var(--surface) 55%, #000 35%);
   }
   .card::before{
     content:'';
@@ -772,34 +770,48 @@
     z-index:-1;
     transition: opacity .35s ease;
   }
-  .card::after{
-    content:'';
-    position:absolute;
-    inset:0;
+  .card-face{
+    position:relative;
+    background: var(--surface);
+    background-image: linear-gradient(165deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 45%);
+    border:1px solid var(--border);
     border-radius: var(--radius);
-    background: linear-gradient(165deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.16) 22%, rgba(255,255,255,0) 48%);
-    pointer-events:none;
-    z-index:-1;
+    padding:18px 20px;
+    display:grid;
+    grid-template-columns: 78px 1fr auto;
+    gap:18px;
+    align-items:center;
+    transform: translateY(-6px);
+    transition: transform .18s cubic-bezier(.3,.6,.4,1), background .35s ease, border-color .3s ease;
   }
-  html[data-theme="dark"] .card::after{
-    background: linear-gradient(165deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 22%, rgba(255,255,255,0) 48%);
+  html[data-theme="dark"] .card-face{
+    background-image: linear-gradient(165deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0) 45%);
   }
   .card:hover, .card.tapped{
-    transform: translateY(-16px) scale(1.08);
-    transform-origin: center;
     box-shadow: var(--card-shadow-hover), 0 0 24px color-mix(in srgb, var(--hover-glow) 45%, transparent);
-    border-color: transparent;
     z-index:40;
+  }
+  .card:hover .card-face, .card.tapped .card-face{
+    transform: translateY(-1px);
+    border-color: transparent;
   }
   .card:hover::before, .card.tapped::before{
     opacity:1;
   }
   .card.past{ opacity:0.55; }
   .card.no-date{
-    background: #f5efe1;
+    background: color-mix(in srgb, #f5efe1 55%, #000 15%);
     border-color: #e6d9bd;
   }
   html[data-theme="dark"] .card.no-date{
+    background: color-mix(in srgb, #2b2418 55%, #000 30%);
+    border-color: #4a3f28;
+  }
+  .card.no-date .card-face{
+    background: #f5efe1;
+    border-color: #e6d9bd;
+  }
+  html[data-theme="dark"] .card.no-date .card-face{
     background: #2b2418;
     border-color: #4a3f28;
   }
@@ -826,14 +838,17 @@
     font-weight:700;
     border:1px solid color-mix(in srgb, var(--moss) 40%, transparent);
   }
-  .card.urgent{
+  .card.urgent .card-face{
     border-color: var(--danger);
     background: var(--danger-soft);
     background: color-mix(in srgb, var(--danger) 7%, var(--surface));
   }
   .card.urgent-today{
-    border-width:2px;
     box-shadow: 0 0 0 1px var(--danger), var(--card-shadow);
+  }
+  .card.urgent-today .card-face{
+    border-width:2px;
+    border-color: var(--danger);
   }
   .card.urgent .date-block{ background: var(--danger); }
   .card.urgent .date-block .day{ color:#ffffff; text-shadow:0 0 12px rgba(255,255,255,0.7); }
@@ -945,7 +960,7 @@
   }
 
   @media (max-width: 620px){
-    .card{ grid-template-columns: 60px 1fr; }
+    .card-face{ grid-template-columns: 60px 1fr; }
     .card-actions{ grid-column: 1 / -1; flex-direction:row; flex-wrap:wrap; justify-content:flex-end; }
     .form-grid{ grid-template-columns: 1fr; }
     .toolbar{ flex-wrap:wrap; overflow-x:visible; }
@@ -971,27 +986,6 @@
   @keyframes confettiFall{
     0%{ transform: translateY(0) translateX(0) rotate(0deg); opacity:1; }
     100%{ transform: translateY(112vh) translateX(var(--drift,0px)) rotate(var(--spin,540deg)); opacity:0.85; }
-  }
-
-  .chat-burst-layer{
-    position:fixed;
-    inset:0;
-    z-index:2000;
-    pointer-events:none;
-    overflow:hidden;
-  }
-  .chat-burst-piece{
-    position:absolute;
-    bottom:-10vh;
-    opacity:0;
-    animation-name: chatBurstRise;
-    animation-timing-function: cubic-bezier(.22,.7,.32,1);
-    animation-fill-mode: forwards;
-  }
-  @keyframes chatBurstRise{
-    0%{ transform: translateY(0) translateX(0) scale(0.5) rotate(0deg); opacity:0; }
-    12%{ opacity:1; }
-    100%{ transform: translateY(-78vh) translateX(var(--drift,0px)) scale(1.15) rotate(var(--wiggle,12deg)); opacity:0; }
   }
 
   /* ---- Εναλλαγή προβολής Λίστα/Ημερολόγιο ---- */
@@ -2162,28 +2156,30 @@ function cardHtml(r, today){
 
   return `
     <div class="card ${isPast ? 'past' : ''} ${urgentClass} ${noDateClass}" id="exp-${r.ID}">
-      <div class="date-block ${dateParts.small ? 'compact' : ''} ${dateParts.range ? 'range' : ''}">
-        <div class="day">${dateParts.day}</div>
-        <div class="mon">${dateParts.mon}</div>
-      </div>
-      <div class="card-main">
-        <p class="title">👉 <a href="${escapeAttr(link)}" target="_blank" rel="noopener">${escapeHtml(title)}</a></p>
-        <div class="meta">
-          ${urgentBadge}
-          ${noDateBadge}
-          ${r['Διάρκεια'] ? `<span class="tag duration">${escapeHtml(r['Διάρκεια'])}</span>` : ''}
-          ${r['Διαμονή'] ? `<span class="tag stay">${escapeHtml(r['Διαμονή'])}</span>` : ''}
-          ${who ? `<span class="tag who">πρόταση: ${escapeHtml(who)}</span>` : ''}
+      <div class="card-face">
+        <div class="date-block ${dateParts.small ? 'compact' : ''} ${dateParts.range ? 'range' : ''}">
+          <div class="day">${dateParts.day}</div>
+          <div class="mon">${dateParts.mon}</div>
         </div>
-        <div class="interested">${interested.length ? `🥾 <b>${interested.length}</b> θα έρθουν: ${escapeHtml(interested.join(', '))}` : '🥾 Θα το ζήσουμε παρέα;'}</div>
-        ${maybe.length ? `<div class="interested maybe-line">💭 <b>${maybe.length}</b> το σκέφτονται: ${escapeHtml(maybe.join(', '))}</div>` : ''}
-      </div>
-      <div class="card-actions">
-        <button class="btn-ghost go-btn ${iAmIn ? 'active' : ''}" data-go="${r.ID}">${iAmIn ? '✓ Θα έρθω' : 'Θα έρθω'}</button>
-        <button class="btn-maybe ${iAmMaybe ? 'active' : ''}" data-maybe="${r.ID}">${iAmMaybe ? '✓ Το σκέφτομαι' : 'Το σκέφτομαι'}</button>
-        <button class="btn-chat" data-chat="${r.ID}" data-chat-title="${escapeAttr(title)}">💬 Κους Κους${commentCount > 0 ? `<span class="chat-count-badge">${commentCount}</span>` : ''}</button>
-        <button class="btn-edit" data-edit="${r.ID}">Επεξεργασία</button>
-        <button class="btn-danger" data-del="${r.ID}">Διαγραφή</button>
+        <div class="card-main">
+          <p class="title">👉 <a href="${escapeAttr(link)}" target="_blank" rel="noopener">${escapeHtml(title)}</a></p>
+          <div class="meta">
+            ${urgentBadge}
+            ${noDateBadge}
+            ${r['Διάρκεια'] ? `<span class="tag duration">${escapeHtml(r['Διάρκεια'])}</span>` : ''}
+            ${r['Διαμονή'] ? `<span class="tag stay">${escapeHtml(r['Διαμονή'])}</span>` : ''}
+            ${who ? `<span class="tag who">πρόταση: ${escapeHtml(who)}</span>` : ''}
+          </div>
+          <div class="interested">${interested.length ? `🥾 <b>${interested.length}</b> θα έρθουν: ${escapeHtml(interested.join(', '))}` : '🥾 Θα το ζήσουμε παρέα;'}</div>
+          ${maybe.length ? `<div class="interested maybe-line">💭 <b>${maybe.length}</b> το σκέφτονται: ${escapeHtml(maybe.join(', '))}</div>` : ''}
+        </div>
+        <div class="card-actions">
+          <button class="btn-ghost go-btn ${iAmIn ? 'active' : ''}" data-go="${r.ID}">${iAmIn ? '✓ Θα έρθω' : 'Θα έρθω'}</button>
+          <button class="btn-maybe ${iAmMaybe ? 'active' : ''}" data-maybe="${r.ID}">${iAmMaybe ? '✓ Το σκέφτομαι' : 'Το σκέφτομαι'}</button>
+          <button class="btn-chat" data-chat="${r.ID}" data-chat-title="${escapeAttr(title)}">💬 Κους Κους${commentCount > 0 ? `<span class="chat-count-badge">${commentCount}</span>` : ''}</button>
+          <button class="btn-edit" data-edit="${r.ID}">Επεξεργασία</button>
+          <button class="btn-danger" data-del="${r.ID}">Διαγραφή</button>
+        </div>
       </div>
     </div>
   `;
@@ -2539,7 +2535,6 @@ document.getElementById('chatForm').addEventListener('submit', async (e) => {
   const box = document.getElementById('chatMessages');
 
   input.value = '';
-  triggerChatBurst_();
 
   const replyPayload = REPLYING_TO_ ? {
     replyToId: REPLYING_TO_.id,
@@ -3189,35 +3184,6 @@ function triggerConfetti(){
   }
   document.body.appendChild(layer);
   setTimeout(() => layer.remove(), 8000);
-}
-
-// Διαφορετικό, ελαφρύτερο εφέ από τα κομφετί -- emoji που ανεβαίνουν από
-// κάτω και σβήνουν, για κάθε νέο μήνυμα στο κους κους.
-function triggerChatBurst_(){
-  const emojis = ['🎈', '✨', '🥾', '⛰️', '🙌', '😄', '🌤️'];
-  const layer = document.createElement('div');
-  layer.className = 'chat-burst-layer';
-  const count = 16;
-  for (let i = 0; i < count; i++){
-    const el = document.createElement('div');
-    el.className = 'chat-burst-piece';
-    const left = 8 + Math.random() * 84;
-    const duration = 1.7 + Math.random() * 1.3;
-    const delay = Math.random() * 0.35;
-    const drift = (Math.random() * 140 - 70) + 'px';
-    const wiggle = (Math.random() * 40 - 20) + 'deg';
-    const size = 18 + Math.random() * 18;
-    el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
-    el.style.left = left + '%';
-    el.style.fontSize = size + 'px';
-    el.style.animationDuration = duration + 's';
-    el.style.animationDelay = delay + 's';
-    el.style.setProperty('--drift', drift);
-    el.style.setProperty('--wiggle', wiggle);
-    layer.appendChild(el);
-  }
-  document.body.appendChild(layer);
-  setTimeout(() => layer.remove(), 3500);
 }
 
 // ---- Ορειβατική Ορολογία / Ελληνικά Βουνά ----
