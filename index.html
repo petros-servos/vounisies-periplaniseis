@@ -298,7 +298,7 @@
   .comment-notif-panel{
     display:none;
     position:absolute; top:56px; right:0;
-    width:min(88vw, 300px); max-height:360px; overflow-y:auto;
+    width:min(90vw, 330px); max-height:360px; overflow-y:auto;
     background: var(--surface);
     background: color-mix(in srgb, var(--surface) 82%, transparent);
     backdrop-filter: blur(16px);
@@ -315,31 +315,34 @@
   .comment-notif-list{ padding:6px; }
   .comment-notif-empty{ padding:16px; text-align:center; color: var(--text-dim); font-size:14.7px; }
   .comment-notif-item{
-    display:block; padding:10px 30px 10px 10px; border-radius:9px;
+    display:block; padding:12px 32px 12px 12px; border-radius:9px;
     text-decoration:none; color: var(--text);
-    font-size:14.7px; line-height:1.4;
+    font-size:15.5px; line-height:1.45;
     position:relative;
   }
   .comment-notif-item:hover{ background: var(--surface-2); }
-  .comment-notif-item b{ color: #2563a8; display:block; font-size:15.3px; margin-bottom:1px; }
   .comment-notif-item .comment-notif-expedition{
-    display:block; font-size:12.5px; color: var(--text-dim); margin-bottom:2px;
+    display:block; font-family:Calibri, Carlito, sans-serif; font-weight:700;
+    font-size:17px; color: #2563a8; margin-bottom:3px;
+  }
+  .comment-notif-item b{
+    display:block; font-weight:600; font-size:15px; color: var(--text); margin-bottom:2px;
   }
   .comment-notif-preview{
-    display:block; font-size:13px; color: var(--text-dim);
+    display:block; font-size:14.3px; font-style:italic; color: var(--text-dim);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .comment-notif-item.unread{ background: color-mix(in srgb, #2563a8 10%, transparent); }
   .comment-notif-item.unread::before{
-    content:''; position:absolute; top:14px; left:-2px;
+    content:''; position:absolute; top:16px; left:-2px;
     width:7px; height:7px; border-radius:50%; background: #2563a8;
   }
-  .comment-notif-ts{ display:block; margin-top:4px; font-size:12.2px; color: var(--text-dim); }
+  .comment-notif-ts{ display:block; margin-top:6px; font-size:13px; color: var(--text-dim); }
   .comment-notif-dismiss{
-    position:absolute; top:8px; right:6px;
-    width:22px; height:22px; border-radius:50%;
+    position:absolute; top:10px; right:7px;
+    width:24px; height:24px; border-radius:50%;
     border:none; background:transparent; color: var(--text-dim);
-    font-size:15px; line-height:1; cursor:pointer;
+    font-size:17px; line-height:1; cursor:pointer;
     display:flex; align-items:center; justify-content:center;
   }
   .comment-notif-dismiss:hover{ background: color-mix(in srgb, #2563a8 18%, transparent); color: #2563a8; }
