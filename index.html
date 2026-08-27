@@ -772,7 +772,7 @@
   }
   .card-face{
     position:relative;
-    background: var(--surface);
+    background-color: var(--surface);
     background-image: linear-gradient(165deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 45%);
     border:1px solid var(--border);
     border-radius: var(--radius);
@@ -782,7 +782,7 @@
     gap:18px;
     align-items:center;
     transform: translateY(-6px);
-    transition: transform .18s cubic-bezier(.3,.6,.4,1), background .35s ease, border-color .3s ease;
+    transition: transform .18s cubic-bezier(.3,.6,.4,1), background-color .25s ease, border-color .3s ease;
   }
   html[data-theme="dark"] .card-face{
     background-image: linear-gradient(165deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0) 45%);
@@ -794,6 +794,7 @@
   }
   .card:hover .card-face, .card.tapped .card-face{
     transform: translateY(-1px);
+    background-color: color-mix(in srgb, var(--hover-glow) 42%, var(--surface));
     border-color: transparent;
   }
   .card:hover::before, .card.tapped::before{
@@ -825,6 +826,12 @@
   .card.no-date:hover, .card.no-date.tapped{
     border-color: var(--moss);
     box-shadow: var(--card-shadow-hover), 0 0 18px color-mix(in srgb, var(--moss) 16%, transparent);
+  }
+  .card.no-date:hover .card-face, .card.no-date.tapped .card-face{
+    background-color: color-mix(in srgb, var(--moss) 24%, #f5efe1);
+  }
+  html[data-theme="dark"] .card.no-date:hover .card-face, html[data-theme="dark"] .card.no-date.tapped .card-face{
+    background-color: color-mix(in srgb, var(--moss) 26%, #2b2418);
   }
   .card.no-date .date-block{
     background: color-mix(in srgb, var(--moss) 14%, var(--surface-2));
