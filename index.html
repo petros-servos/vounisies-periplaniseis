@@ -325,6 +325,10 @@
   .comment-notif-item .comment-notif-expedition{
     display:block; font-size:12.5px; color: var(--text-dim); margin-bottom:2px;
   }
+  .comment-notif-preview{
+    display:block; font-size:13px; color: var(--text-dim);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
   .comment-notif-item.unread{ background: color-mix(in srgb, #2563a8 10%, transparent); }
   .comment-notif-item.unread::before{
     content:''; position:absolute; top:14px; left:-2px;
@@ -418,7 +422,7 @@
   }
   .chat-msg-tool:hover{ opacity:1; background: var(--surface); }
   .chat-msg-text{
-    font-size:16.5px; line-height:1.48; color: var(--text);
+    font-size:16.5px; font-weight:600; line-height:1.48; color: var(--text);
     white-space:pre-wrap; word-break:break-word;
   }
   .chat-msg-text a{ color: var(--navy); text-decoration:underline; }
@@ -2953,55 +2957,85 @@ async function refreshCommentNotifs(){
   } catch(e){ /* σιωπηλή αποτυχία -- διατηρεί ό,τι ήδη φαίνεται στην οθόνη */ }
 }
 
+// Ομαδοποιεί τα πρόσφατα σχόλια ανά εξόρμηση, ώστε μια πολύ "φλύαρη"
+// συνομιλία να μην κρύβει τη δραστηριότητα άλλων εξορμήσεων από τη λίστα.
+function groupRecentComments_(items){
+  const byExpedition = new Map();
+  items.forEach(c => {
+    if (!byExpedition.has(c.expeditionId)){
+      byExpedition.set(c.expeditionId, { expeditionId: c.expeditionId, expeditionTitle: c.expeditionTitle, items: [] });
+    }
+    byExpedition.get(c.expeditionId).items.push(c);
+  });
+  const groups = [...byExpedition.values()];
+  groups.forEach(g => g.items.sort((a, b) => new Date(a.ts) - new Date(b.ts))); // παλιό -> νέο μέσα στην ομάδα
+  groups.sort((a, b) => {
+    const aLatest = a.items[a.items.length - 1].ts;
+    const bLatest = b.items[b.items.length - 1].ts;
+    return new Date(bLatest) - new Date(aLatest);
+  });
+  return groups;
+}
+
 function renderCommentNotifs(){
   const badge = document.getElementById('commentNotifBadge');
   const list = document.getElementById('commentNotifList');
-  const items = LAST_RECENT_COMMENTS_.filter(c => !COMMENT_NOTIF_DISMISSED_IDS.has(c.id));
-  if (items.length === 0){
+  const visible = LAST_RECENT_COMMENTS_.filter(c => !COMMENT_NOTIF_DISMISSED_IDS.has(c.id));
+  const groups = groupRecentComments_(visible);
+  if (groups.length === 0){
     badge.classList.remove('show');
     list.innerHTML = '<div class="comment-notif-empty">Καμία πρόσφατη προσθήκη</div>';
     return;
   }
-  const unread = items.filter(c => !COMMENT_NOTIF_READ_IDS.has(c.id)).length;
-  if (unread > 0){ badge.textContent = unread; badge.classList.add('show'); }
+  const unreadGroups = groups.filter(g => g.items.some(it => !COMMENT_NOTIF_READ_IDS.has(it.id)));
+  if (unreadGroups.length > 0){ badge.textContent = unreadGroups.length; badge.classList.add('show'); }
   else { badge.classList.remove('show'); }
-  list.innerHTML = items.map(c => {
-    const read = COMMENT_NOTIF_READ_IDS.has(c.id);
+
+  list.innerHTML = groups.map(g => {
+    const unreadCount = g.items.filter(it => !COMMENT_NOTIF_READ_IDS.has(it.id)).length;
+    const latest = g.items[g.items.length - 1];
+    const countLabel = g.items.length === 1 ? '1 νέο σχόλιο' : `${g.items.length} νέα σχόλια`;
     return `
-      <a href="#" class="comment-notif-item ${read ? '' : 'unread'}" data-comment-notif-id="${escapeAttr(c.id)}" data-expedition-id="${escapeAttr(c.expeditionId)}">
-        <span class="comment-notif-expedition">${escapeHtml(c.expeditionTitle || 'Εξόρμηση')}</span>
-        <b>${escapeHtml(c.name || '')}</b>${escapeHtml(c.text || '')}
-        <span class="comment-notif-ts">${formatNotifTime_(c.ts)}</span>
-        <button type="button" class="comment-notif-dismiss" data-comment-dismiss-id="${escapeAttr(c.id)}" title="Αφαίρεση ειδοποίησης">×</button>
+      <a href="#" class="comment-notif-item ${unreadCount > 0 ? 'unread' : ''}" data-group-expedition="${escapeAttr(g.expeditionId)}">
+        <span class="comment-notif-expedition">${escapeHtml(g.expeditionTitle || 'Εξόρμηση')}</span>
+        <b>${escapeHtml(countLabel)}</b>
+        <span class="comment-notif-preview">${escapeHtml((latest.name || '') + (latest.text ? (': ' + latest.text) : ''))}</span>
+        <span class="comment-notif-ts">${formatNotifTime_(latest.ts)}</span>
+        <button type="button" class="comment-notif-dismiss" data-group-dismiss="${escapeAttr(g.expeditionId)}" title="Αφαίρεση ειδοποίησης">×</button>
       </a>
     `;
   }).join('');
-  list.querySelectorAll('.comment-notif-item').forEach(el => {
+
+  list.querySelectorAll('[data-group-expedition]').forEach(el => {
     el.addEventListener('click', (e) => {
       e.preventDefault();
-      goToCommentNotif(el.dataset.commentNotifId, el.dataset.expeditionId);
+      goToCommentGroup_(el.dataset.groupExpedition);
     });
   });
-  list.querySelectorAll('.comment-notif-dismiss').forEach(el => {
+  list.querySelectorAll('[data-group-dismiss]').forEach(el => {
     el.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      COMMENT_NOTIF_DISMISSED_IDS.add(el.dataset.commentDismissId);
+      const group = groups.find(g => g.expeditionId === el.dataset.groupDismiss);
+      if (group) group.items.forEach(it => COMMENT_NOTIF_DISMISSED_IDS.add(it.id));
       saveIdSet_(COMMENT_NOTIF_DISMISSED_KEY, COMMENT_NOTIF_DISMISSED_IDS);
       renderCommentNotifs();
     });
   });
 }
 
-async function goToCommentNotif(commentId, expeditionId){
-  COMMENT_NOTIF_READ_IDS.add(commentId);
+async function goToCommentGroup_(expeditionId){
+  const groupItems = LAST_RECENT_COMMENTS_.filter(c => c.expeditionId === expeditionId);
+  groupItems.forEach(c => COMMENT_NOTIF_READ_IDS.add(c.id));
   saveIdSet_(COMMENT_NOTIF_READ_KEY, COMMENT_NOTIF_READ_IDS);
   renderCommentNotifs();
   document.getElementById('commentNotifPanel').classList.remove('open');
   const row = ROWS.find(r => r.ID === expeditionId);
-  const title = row ? (row['Σχόλια'] || 'Εξόρμηση') : 'Εξόρμηση';
+  const title = row ? (row['Σχόλια'] || 'Εξόρμηση') : (groupItems[0] ? groupItems[0].expeditionTitle : 'Εξόρμηση');
   await openChatModal(expeditionId, title);
-  setTimeout(() => jumpToComment_(commentId), 300);
+  // Πήγαινε στο παλιότερο σχόλιο της ομάδας, ώστε να διαβάσεις με τη σειρά.
+  const sorted = [...groupItems].sort((a, b) => new Date(a.ts) - new Date(b.ts));
+  if (sorted[0]) setTimeout(() => jumpToComment_(sorted[0].id), 300);
 }
 
 document.getElementById('commentNotifBell').addEventListener('click', () => {
