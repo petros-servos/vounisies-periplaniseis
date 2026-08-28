@@ -373,6 +373,58 @@
   }
   #editModalOverlay .modal-box{ max-width:520px; }
   #nameModalOverlay{ z-index:1200; }
+
+  /* ---- Welcome overlay ---- */
+  #welcomeOverlay{
+    position:fixed; inset:0; z-index:3000;
+    display:none; align-items:center; justify-content:center;
+    padding:20px;
+    background:
+      radial-gradient(1200px 800px at 15% 10%, color-mix(in srgb, var(--moss) 22%, transparent), transparent 60%),
+      radial-gradient(1000px 700px at 85% 90%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 60%),
+      color-mix(in srgb, var(--navy) 88%, black);
+  }
+  #welcomeOverlay.show{ display:flex; }
+  .welcome-card{
+    width:min(94vw, 460px);
+    background: var(--surface);
+    border-radius: 20px;
+    padding:34px 30px 30px;
+    text-align:center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35), 0 4px 14px rgba(0,0,0,0.2);
+    animation: welcomePop .45s cubic-bezier(.2,.9,.3,1.3);
+  }
+  @keyframes welcomePop{
+    from{ opacity:0; transform: translateY(14px) scale(.96); }
+    to{ opacity:1; transform: translateY(0) scale(1); }
+  }
+  .welcome-emoji{ font-size:52px; line-height:1; margin-bottom:14px; }
+  .welcome-title{
+    font-size:22px; font-weight:800; color: var(--navy); margin:0 0 8px;
+  }
+  .welcome-sub{
+    font-size:14.5px; color: var(--text-dim); margin:0 0 22px;
+  }
+  .welcome-names{
+    display:grid; grid-template-columns:1fr 1fr; gap:10px;
+  }
+  .welcome-name-btn{
+    padding:13px 10px; border-radius:12px; border:1.5px solid var(--border);
+    background: var(--surface-2); color: var(--text);
+    font-size:15px; font-weight:700; cursor:pointer;
+    transition: transform .15s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
+  }
+  .welcome-name-btn:hover{
+    background: var(--accent-soft); border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(0,0,0,0.12);
+  }
+  .welcome-name-btn:active{ transform: translateY(0); }
+  @media (max-width:420px){
+    .welcome-card{ padding:28px 20px 24px; }
+    .welcome-emoji{ font-size:44px; }
+    .welcome-title{ font-size:19px; }
+  }
   #chatModalOverlay .modal-box.chat-modal-box{
     max-width:480px; width:92%;
     display:flex; flex-direction:column;
@@ -1393,6 +1445,21 @@
 </style>
 </head>
 <body>
+<div id="welcomeOverlay">
+  <div class="welcome-card">
+    <div class="welcome-emoji">👋</div>
+    <h2 class="welcome-title">Καλώς μας ήρθες, το ονοματάκι σου;</h2>
+    <p class="welcome-sub">Το θυμόμαστε για την επόμενη φορά σε αυτή τη συσκευή.</p>
+    <div class="welcome-names">
+      <button type="button" class="welcome-name-btn" data-name="Πέτρος">Πέτρος</button>
+      <button type="button" class="welcome-name-btn" data-name="Κυριάκος">Κυριάκος</button>
+      <button type="button" class="welcome-name-btn" data-name="Ελένη">Ελένη</button>
+      <button type="button" class="welcome-name-btn" data-name="Άρτεμις - Ντιάνα">Άρτεμις - Ντιάνα</button>
+      <button type="button" class="welcome-name-btn" data-name="Σοφία">Σοφία</button>
+      <button type="button" class="welcome-name-btn" data-name="Εύη">Εύη</button>
+    </div>
+  </div>
+</div>
 
 
 <div id="liveClock" class="live-clock"></div>
@@ -2030,7 +2097,13 @@ function updateLiveClock(){
 updateLiveClock();
 setInterval(updateLiveClock, 15000);
 let ROWS = [];
+const MY_NAME_KEY = 'vp_my_name_v1';
 let MY_NAME = '';
+try { MY_NAME = localStorage.getItem(MY_NAME_KEY) || ''; } catch(e){ /* localStorage μη διαθέσιμο -- συνεχίζουμε ανώνυμα */ }
+function setMyName_(name){
+  MY_NAME = name;
+  try { localStorage.setItem(MY_NAME_KEY, name); } catch(e){ /* αγνόησε -- η εφαρμογή δουλεύει κανονικά χωρίς persistence */ }
+}
 let VISIT_LOGGED_THIS_SESSION_ = false;
 // Καταγράφει την επίσκεψη μία φορά ανά άνοιγμα της εφαρμογής, μόνο αφού
 // είναι γνωστό το όνομα (δεν καταγράφεται τίποτα ανώνυμα/IP).
@@ -2068,6 +2141,9 @@ function apiGetComments(expeditionId){
 }
 function apiGetRecentComments(){
   return fetch(API_URL + '?action=recentComments').then(r => r.json());
+}
+function apiGetNotifState(name){
+  return fetch(API_URL + '?action=notifState&name=' + encodeURIComponent(name)).then(r => r.json());
 }
 function apiPost(payload){
   // text/plain αποφεύγει το CORS preflight στο Apps Script
@@ -2589,7 +2665,7 @@ async function onInterest(id){
   if (!MY_NAME){
     const name = await askName();
     if (!name) return;
-    MY_NAME = name;
+    setMyName_(name);
     maybeLogVisit_();
   }
   const row = ROWS.find(r => r.ID === id);
@@ -2608,7 +2684,7 @@ async function onMaybe(id){
   if (!MY_NAME){
     const name = await askName();
     if (!name) return;
-    MY_NAME = name;
+    setMyName_(name);
     maybeLogVisit_();
   }
   const res = await apiPost({ action:'maybe', id, name: MY_NAME });
@@ -2664,7 +2740,7 @@ async function openChatModal(expeditionId, title){
   if (!MY_NAME){
     const name = await askName();
     if (!name) return; // ακύρωσε -- δεν ανοίγει το chat χωρίς όνομα
-    MY_NAME = name;
+    setMyName_(name);
     maybeLogVisit_();
   }
   CHAT_EXPEDITION_ID = expeditionId;
@@ -2885,7 +2961,7 @@ document.getElementById('chatForm').addEventListener('submit', async (e) => {
   if (!MY_NAME){
     const name = await askName();
     if (!name) return;
-    MY_NAME = name;
+    setMyName_(name);
     maybeLogVisit_();
   }
   const input = document.getElementById('chatInput');
@@ -3105,7 +3181,7 @@ addForm.addEventListener('submit', async (e) => {
   };
   if (!payload.name){ showStatus('Επιλέξτε ή γράψτε ένα όνομα.'); return; }
   if (!fNoDate.checked && !payload.date){ showStatus('Συμπληρώστε ημερομηνία ή επιλέξτε "Πρόταση Summit Squad".'); return; }
-  MY_NAME = payload.name;
+  setMyName_(payload.name);
   maybeLogVisit_();
   const res = await apiPost(payload);
   if (res.ok){
@@ -3164,6 +3240,14 @@ function loadIdSet_(key){
 function saveIdSet_(key, set){
   try { localStorage.setItem(key, JSON.stringify([...set])); } catch(e){ /* αγνόησε -- η εφαρμογή δουλεύει κανονικά χωρίς persistence */ }
 }
+// Ενημερώνει το backend (ανά όνομα) ότι ένα ή περισσότερα IDs ειδοποιήσεων
+// έγιναν "read" ή "dismiss", ώστε η κατάσταση να συγχρονίζεται σε όλες τις
+// συσκευές/browsers του ίδιου ανθρώπου. Fire-and-forget: αν αποτύχει (π.χ.
+// προσωρινά offline), η εφαρμογή συνεχίζει κανονικά με την τοπική κατάσταση.
+function markNotifServer_(type, kind, ids){
+  if (!MY_NAME || !ids || !ids.length) return;
+  apiPost({ action:'notifMark', name: MY_NAME, type, kind, ids }).catch(() => { /* σιωπηλή αποτυχία */ });
+}
 function formatNotifTime_(iso){
   const d = new Date(iso);
   if (isNaN(d)) return '';
@@ -3187,6 +3271,38 @@ let NOTIF_READ_IDS = loadIdSet_(NOTIF_READ_KEY);
 let NOTIF_DISMISSED_IDS = loadIdSet_(NOTIF_DISMISSED_KEY);
 let SS_NOTIF_READ_IDS = loadIdSet_(SS_NOTIF_READ_KEY);
 let SS_NOTIF_DISMISSED_IDS = loadIdSet_(SS_NOTIF_DISMISSED_KEY);
+
+// Φέρνει από το backend την κατάσταση ειδοποιήσεων (read/dismissed) του
+// τρέχοντος ονόματος και την ενώνει με ό,τι ήδη υπάρχει τοπικά (localStorage),
+// ώστε να μη "χάνεται" τίποτα προς καμία κατεύθυνση. Καλείται μία φορά όταν
+// γίνεται γνωστό το όνομα (βλ. initWelcomeOverlay_) -- αυτό είναι το κομμάτι
+// που κάνει το "read/dismissed" να συγχρονίζεται πλέον σε όλες τις συσκευές.
+async function syncNotifStateFromServer_(){
+  if (!MY_NAME) return;
+  try {
+    const state = await apiGetNotifState(MY_NAME);
+    if (!state || typeof state !== 'object') return;
+    const merge_ = (localSet, key, remote) => {
+      (remote || []).forEach(id => localSet.add(id));
+      saveIdSet_(key, localSet);
+    };
+    if (state.notif){
+      merge_(NOTIF_READ_IDS, NOTIF_READ_KEY, state.notif.read);
+      merge_(NOTIF_DISMISSED_IDS, NOTIF_DISMISSED_KEY, state.notif.dismissed);
+    }
+    if (state.ss){
+      merge_(SS_NOTIF_READ_IDS, SS_NOTIF_READ_KEY, state.ss.read);
+      merge_(SS_NOTIF_DISMISSED_IDS, SS_NOTIF_DISMISSED_KEY, state.ss.dismissed);
+    }
+    if (state.comment){
+      merge_(COMMENT_NOTIF_READ_IDS, COMMENT_NOTIF_READ_KEY, state.comment.read);
+      merge_(COMMENT_NOTIF_DISMISSED_IDS, COMMENT_NOTIF_DISMISSED_KEY, state.comment.dismissed);
+    }
+    renderNotifs();
+    renderSSNotifs();
+    renderCommentNotifs();
+  } catch(e){ /* σιωπηλή αποτυχία -- συνεχίζουμε με την τοπική κατάσταση */ }
+}
 
 // Υπολογίζει ζωντανά τις τελευταίες (έως 5) εξορμήσεις μιας κατηγορίας
 // (γενικές ή Summit Squad), με βάση την κοινή χρονοσήμανση του Sheet.
@@ -3231,6 +3347,7 @@ function renderNotifs(){
       e.preventDefault(); e.stopPropagation();
       NOTIF_DISMISSED_IDS.add(el.dataset.dismissId);
       saveIdSet_(NOTIF_DISMISSED_KEY, NOTIF_DISMISSED_IDS);
+      markNotifServer_('notif', 'dismiss', [el.dataset.dismissId]);
       renderNotifs();
     });
   });
@@ -3239,6 +3356,7 @@ function renderNotifs(){
 function goToNotif(id){
   NOTIF_READ_IDS.add(id);
   saveIdSet_(NOTIF_READ_KEY, NOTIF_READ_IDS);
+  markNotifServer_('notif', 'read', [id]);
   renderNotifs();
   document.getElementById('notifPanel').classList.remove('open');
   // Οι κανονικές (με ημερομηνία) εξορμήσεις δεν εμφανίζονται όσο είναι
@@ -3284,6 +3402,7 @@ function renderSSNotifs(){
       e.preventDefault(); e.stopPropagation();
       SS_NOTIF_DISMISSED_IDS.add(el.dataset.ssDismissId);
       saveIdSet_(SS_NOTIF_DISMISSED_KEY, SS_NOTIF_DISMISSED_IDS);
+      markNotifServer_('ss', 'dismiss', [el.dataset.ssDismissId]);
       renderSSNotifs();
     });
   });
@@ -3292,6 +3411,7 @@ function renderSSNotifs(){
 function goToSSNotif(id){
   SS_NOTIF_READ_IDS.add(id);
   saveIdSet_(SS_NOTIF_READ_KEY, SS_NOTIF_READ_IDS);
+  markNotifServer_('ss', 'read', [id]);
   renderSSNotifs();
   document.getElementById('ssNotifPanel').classList.remove('open');
   // Δείξε τα Summit Squad αποτελέσματα ώστε η κάρτα να υπάρχει στη σελίδα
@@ -3408,6 +3528,7 @@ function renderCommentNotifs(){
       const group = groups.find(g => g.expeditionId === el.dataset.groupDismiss);
       if (group) group.items.forEach(it => COMMENT_NOTIF_DISMISSED_IDS.add(it.id));
       saveIdSet_(COMMENT_NOTIF_DISMISSED_KEY, COMMENT_NOTIF_DISMISSED_IDS);
+      if (group) markNotifServer_('comment', 'dismiss', group.items.map(it => it.id));
       renderCommentNotifs();
     });
   });
@@ -3417,6 +3538,7 @@ async function goToCommentGroup_(expeditionId){
   const groupItems = LAST_RECENT_COMMENTS_.filter(c => c.expeditionId === expeditionId);
   groupItems.forEach(c => COMMENT_NOTIF_READ_IDS.add(c.id));
   saveIdSet_(COMMENT_NOTIF_READ_KEY, COMMENT_NOTIF_READ_IDS);
+  markNotifServer_('comment', 'read', groupItems.map(c => c.id));
   renderCommentNotifs();
   document.getElementById('commentNotifPanel').classList.remove('open');
   const row = ROWS.find(r => r.ID === expeditionId);
@@ -3813,6 +3935,26 @@ document.getElementById('katafygiaBackToTop').addEventListener('click', (e) => {
   e.preventDefault();
   document.getElementById('katafygiaModalBox').scrollTo({ top: 0, behavior: 'smooth' });
 });
+
+function initWelcomeOverlay_(){
+  const overlay = document.getElementById('welcomeOverlay');
+  if (MY_NAME){
+    // Το όνομα είναι ήδη γνωστό από προηγούμενη επίσκεψη σε αυτή τη συσκευή -- δεν ξαναρωτάμε.
+    maybeLogVisit_();
+    syncNotifStateFromServer_();
+    return;
+  }
+  overlay.classList.add('show');
+  overlay.querySelectorAll('.welcome-name-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      setMyName_(btn.dataset.name);
+      overlay.classList.remove('show');
+      maybeLogVisit_();
+      syncNotifStateFromServer_();
+    }, { once:true });
+  });
+}
+initWelcomeOverlay_();
 
 load();
 </script>
