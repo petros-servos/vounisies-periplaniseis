@@ -970,6 +970,49 @@
     font-size:15.3px;
     padding: 20px 24px 50px;
   }
+  .admin-line{
+    margin-top:8px;
+    font-weight:400;
+    font-size:11.5px;
+    display:flex; align-items:center; justify-content:center; gap:14px;
+  }
+  .admin-line a{
+    color: var(--text-dim);
+    text-decoration:none;
+    opacity:0.6;
+  }
+  .admin-line a:hover{ opacity:1; text-decoration:underline; }
+  .admin-line a.is-admin{ color: var(--moss); opacity:0.9; }
+
+  .admin-stats-box{ max-width:640px; width:94%; max-height:84vh; overflow-y:auto; }
+  .admin-stats-content{ text-align:left; }
+  .stats-section{ margin-bottom:20px; }
+  .stats-section h4{
+    font-family:Calibri, Carlito, sans-serif; font-size:15.5px; margin:0 0 8px;
+    color: var(--text-dim); text-transform:uppercase; letter-spacing:0.03em;
+  }
+  .stats-summary-row{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; }
+  .stats-summary-pill{
+    flex:1; min-width:120px;
+    background: var(--surface-2); border:1px solid var(--border); border-radius:12px;
+    padding:12px 14px; text-align:center;
+  }
+  .stats-summary-pill .num{ font-size:26px; font-weight:700; color: var(--navy); display:block; }
+  .stats-summary-pill .label{ font-size:12.5px; color: var(--text-dim); }
+  .stats-table{ width:100%; border-collapse:collapse; font-size:14px; }
+  .stats-table th{
+    text-align:left; font-size:12px; color: var(--text-dim); font-weight:600;
+    padding:6px 8px; border-bottom:1px solid var(--border);
+  }
+  .stats-table td{ padding:7px 8px; border-bottom:1px solid var(--border); }
+  .stats-table tr:last-child td{ border-bottom:none; }
+  .stats-activity-item{
+    padding:9px 4px; border-bottom:1px solid var(--border); font-size:13.7px;
+  }
+  .stats-activity-item:last-child{ border-bottom:none; }
+  .stats-activity-item .who{ font-weight:700; color: var(--navy); }
+  .stats-activity-item .where{ color: var(--text-dim); font-size:12.3px; display:block; }
+  .stats-note{ font-size:12.5px; color: var(--text-dim); font-style:italic; margin-top:4px; }
 
   @media (max-width: 620px){
     .card-face{ grid-template-columns: 60px 1fr; }
@@ -1548,6 +1591,29 @@
   </div>
 </div>
 
+<div id="adminModalOverlay" class="modal-overlay">
+  <div class="modal-box">
+    <h3>Σύνδεση διαχειριστή</h3>
+    <input type="password" id="adminPasswordInput" placeholder="Κωδικός διαχειριστή">
+    <div class="modal-actions">
+      <button type="button" class="btn-accent" id="adminModalConfirm">Σύνδεση</button>
+      <button type="button" class="btn-ghost" id="adminModalCancel">Άκυρο</button>
+    </div>
+  </div>
+</div>
+
+<div id="adminStatsOverlay" class="modal-overlay">
+  <div class="modal-box admin-stats-box">
+    <h3>📊 Στατιστικά (μόνο διαχειριστής)</h3>
+    <div id="adminStatsContent" class="admin-stats-content">
+      <div class="chat-empty">Φόρτωση...</div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost" id="adminStatsClose">Κλείσιμο</button>
+    </div>
+  </div>
+</div>
+
 <div id="chatModalOverlay" class="modal-overlay">
   <div class="modal-box chat-modal-box">
     <div class="chat-welcome">
@@ -1663,6 +1729,10 @@
 
 <footer>
   Summit Squad – Βουνίσιες περιπλανήσεις
+  <div class="admin-line">
+    <a href="#" id="adminLink">Διαχειριστής</a>
+    <a href="#" id="adminStatsLink" style="display:none;">📊 Στατιστικά</a>
+  </div>
 </footer>
 
 <script>
@@ -2388,10 +2458,8 @@ function renderChatMessages_(comments){
           <span class="chat-msg-name" style="color:${color};">${escapeHtml(c['Όνομα'] || '')}</span>
           <span class="chat-msg-tools">
             <button type="button" class="chat-msg-tool" data-reply-comment="${escapeAttr(c.ID)}" title="Απάντηση">↩️</button>
-            ${own ? `
-              <button type="button" class="chat-msg-tool" data-edit-comment="${escapeAttr(c.ID)}" title="Επεξεργασία">✏️</button>
-              <button type="button" class="chat-msg-tool" data-del-comment="${escapeAttr(c.ID)}" title="Διαγραφή">🗑️</button>
-            ` : ''}
+            ${own ? `<button type="button" class="chat-msg-tool" data-edit-comment="${escapeAttr(c.ID)}" title="Επεξεργασία">✏️</button>` : ''}
+            ${(own || isAdmin()) ? `<button type="button" class="chat-msg-tool" data-del-comment="${escapeAttr(c.ID)}" title="Διαγραφή">🗑️</button>` : ''}
           </span>
         </div>
         ${replyQuote}
@@ -2505,7 +2573,7 @@ async function deleteComment_ui(id){
   LAST_CHAT_COMMENTS_ = LAST_CHAT_COMMENTS_.filter(c => c.ID !== id);
   renderChatMessages_(LAST_CHAT_COMMENTS_);
   try {
-    const res = await apiPost({ action:'deleteComment', id, name: MY_NAME });
+    const res = await apiPost({ action:'deleteComment', id, name: MY_NAME, adminPassword: ADMIN_PASSWORD_LOCAL });
     if (res.ok){
       pollForUpdates();
     } else {
@@ -3139,6 +3207,156 @@ if (toolbarEl){
     ([entry]) => toolbarEl.classList.toggle('stuck', !entry.isIntersecting),
     { threshold: 0 }
   ).observe(sentinel);
+}
+
+// ---- Admin (διαγραφή σχολίων άλλων + στατιστικά) ----
+const ADMIN_STORAGE_KEY = 'vp_admin_password_v1';
+let ADMIN_PASSWORD_LOCAL = null;
+try { ADMIN_PASSWORD_LOCAL = localStorage.getItem(ADMIN_STORAGE_KEY); } catch(e){ /* localStorage μη διαθέσιμο */ }
+
+function isAdmin(){
+  return !!ADMIN_PASSWORD_LOCAL;
+}
+
+const adminLink = document.getElementById('adminLink');
+const adminStatsLink = document.getElementById('adminStatsLink');
+const adminModalOverlay = document.getElementById('adminModalOverlay');
+const adminPasswordInput = document.getElementById('adminPasswordInput');
+
+function refreshAdminLinkLabel(){
+  if (isAdmin()){
+    adminLink.textContent = 'Διαχειριστής ✓ (Έξοδος)';
+    adminLink.classList.add('is-admin');
+    adminStatsLink.style.display = '';
+  } else {
+    adminLink.textContent = 'Διαχειριστής';
+    adminLink.classList.remove('is-admin');
+    adminStatsLink.style.display = 'none';
+  }
+}
+refreshAdminLinkLabel();
+
+adminLink.addEventListener('click', (e) => {
+  e.preventDefault();
+  if (isAdmin()){
+    if (confirm('Αποσύνδεση από λειτουργία διαχειριστή σε αυτή τη συσκευή;')){
+      ADMIN_PASSWORD_LOCAL = null;
+      try { localStorage.removeItem(ADMIN_STORAGE_KEY); } catch(e){}
+      refreshAdminLinkLabel();
+      renderChatMessages_(LAST_CHAT_COMMENTS_);
+    }
+    return;
+  }
+  adminPasswordInput.value = '';
+  adminModalOverlay.classList.add('show');
+  adminPasswordInput.focus();
+});
+
+document.getElementById('adminModalCancel').addEventListener('click', () => {
+  adminModalOverlay.classList.remove('show');
+});
+
+document.getElementById('adminModalConfirm').addEventListener('click', submitAdminPassword);
+adminPasswordInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') submitAdminPassword();
+});
+
+async function submitAdminPassword(){
+  const pw = adminPasswordInput.value;
+  if (!pw) return;
+  const res = await fetch(API_URL + '?action=checkAdmin&adminPassword=' + encodeURIComponent(pw)).then(r => r.json());
+  if (res.ok){
+    ADMIN_PASSWORD_LOCAL = pw;
+    try { localStorage.setItem(ADMIN_STORAGE_KEY, pw); } catch(e){}
+    adminModalOverlay.classList.remove('show');
+    refreshAdminLinkLabel();
+    renderChatMessages_(LAST_CHAT_COMMENTS_);
+  } else {
+    showStatus('Λάθος κωδικός διαχειριστή.');
+  }
+}
+
+// ---- Στατιστικά διαχειριστή ----
+// ΔΕΝ δείχνει IP/επισκέψεις -- τεχνικά δεν είναι διαθέσιμο στο Apps Script.
+// Υπολογίζεται αποκλειστικά από ήδη υπάρχοντα δεδομένα (σχόλια, ενδιαφερόμενοι).
+adminStatsLink.addEventListener('click', async (e) => {
+  e.preventDefault();
+  if (!isAdmin()) return;
+  document.getElementById('adminStatsContent').innerHTML = '<div class="chat-empty">Φόρτωση...</div>';
+  document.getElementById('adminStatsOverlay').classList.add('show');
+  try {
+    const stats = await fetch(API_URL + '?action=adminStats&adminPassword=' + encodeURIComponent(ADMIN_PASSWORD_LOCAL)).then(r => r.json());
+    if (stats.error){
+      document.getElementById('adminStatsContent').innerHTML = '<div class="chat-empty">Δεν ήταν δυνατή η φόρτωση των στατιστικών.</div>';
+      return;
+    }
+    renderAdminStats_(stats);
+  } catch(err){
+    document.getElementById('adminStatsContent').innerHTML = '<div class="chat-empty">Δεν ήταν δυνατή η φόρτωση των στατιστικών.</div>';
+  }
+});
+document.getElementById('adminStatsClose').addEventListener('click', () => {
+  document.getElementById('adminStatsOverlay').classList.remove('show');
+});
+
+function renderAdminStats_(stats){
+  const peopleRows = stats.people.map(p => `
+    <tr>
+      <td>${escapeHtml(p.name)}</td>
+      <td>${p.comments}</td>
+      <td>${p.proposed}</td>
+      <td>${p.interested}</td>
+      <td>${p.maybe}</td>
+      <td>${p.lastCommentTs ? formatNotifTime_(p.lastCommentTs) : '—'}</td>
+    </tr>
+  `).join('');
+
+  const expeditionRows = stats.expeditions.slice(0, 10).map(ex => `
+    <tr>
+      <td>${escapeHtml(ex.title)}${!ex.hasDate ? ' 🎒' : ''}</td>
+      <td>${ex.interested}</td>
+      <td>${ex.maybe}</td>
+      <td>${ex.comments}</td>
+    </tr>
+  `).join('');
+
+  const activityItems = stats.recentActivity.map(a => `
+    <div class="stats-activity-item">
+      <span class="who">${escapeHtml(a.name || '')}</span> — ${escapeHtml(a.text || '')}
+      <span class="where">${escapeHtml(a.expeditionTitle || '')} · ${formatNotifTime_(a.ts)}</span>
+    </div>
+  `).join('');
+
+  document.getElementById('adminStatsContent').innerHTML = `
+    <div class="stats-summary-row">
+      <div class="stats-summary-pill"><span class="num">${stats.totalExpeditions}</span><span class="label">Εξορμήσεις</span></div>
+      <div class="stats-summary-pill"><span class="num">${stats.totalComments}</span><span class="label">Σχόλια</span></div>
+      <div class="stats-summary-pill"><span class="num">${stats.people.length}</span><span class="label">Ενεργά μέλη</span></div>
+    </div>
+
+    <div class="stats-section">
+      <h4>Δραστηριότητα ανά άτομο</h4>
+      <table class="stats-table">
+        <thead><tr><th>Όνομα</th><th>Σχόλια</th><th>Πρότεινε</th><th>Θα έρθω</th><th>Το σκέφτομαι</th><th>Τελευταίο σχόλιο</th></tr></thead>
+        <tbody>${peopleRows || '<tr><td colspan="6">Καμία δραστηριότητα ακόμα.</td></tr>'}</tbody>
+      </table>
+    </div>
+
+    <div class="stats-section">
+      <h4>Δημοφιλέστερες εξορμήσεις</h4>
+      <table class="stats-table">
+        <thead><tr><th>Εξόρμηση</th><th>Θα έρθω</th><th>Το σκέφτομαι</th><th>Σχόλια</th></tr></thead>
+        <tbody>${expeditionRows || '<tr><td colspan="4">Καμία ακόμα.</td></tr>'}</tbody>
+      </table>
+    </div>
+
+    <div class="stats-section">
+      <h4>Πρόσφατη δραστηριότητα</h4>
+      ${activityItems || '<div class="chat-empty">Καμία δραστηριότητα ακόμα.</div>'}
+    </div>
+
+    <div class="stats-note">Σημείωση: δεν εμφανίζονται επισκέψεις ή διευθύνσεις IP -- το Google Apps Script δεν εκθέτει αυτά τα στοιχεία. Τα παραπάνω προκύπτουν αποκλειστικά από ήδη υπάρχοντα δεδομένα (σχόλια, δηλώσεις ενδιαφέροντος).</div>
+  `;
 }
 
 async function onDelete(id){
