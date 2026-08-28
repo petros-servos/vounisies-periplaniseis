@@ -1023,6 +1023,23 @@
   .stats-activity-item .who{ font-weight:700; color: var(--navy); }
   .stats-activity-item .where{ color: var(--text-dim); font-size:12.3px; display:block; }
   .stats-note{ font-size:12.5px; color: var(--text-dim); font-style:italic; margin-top:4px; }
+  .stats-bars{
+    display:flex; align-items:flex-end; gap:2px; height:90px;
+    padding:8px 4px 0; background: var(--surface-2); border-radius:10px 10px 0 0;
+  }
+  .stats-bar{
+    flex:1; background: var(--accent); border-radius:2px 2px 0 0; min-height:2px;
+  }
+  .stats-bars-labels{
+    display:flex; justify-content:space-between; font-size:11px; color: var(--text-dim);
+    padding:4px 6px 0; background: var(--surface-2); border-radius:0 0 10px 10px;
+  }
+  .stats-tags-row{ display:flex; flex-wrap:wrap; gap:7px; }
+  .stats-tag{
+    display:inline-block; padding:5px 11px; border-radius:20px;
+    background: var(--surface-2); border:1px solid var(--border);
+    font-size:13px; color: var(--text);
+  }
 
   @media (max-width: 620px){
     .card-face{ grid-template-columns: 60px 1fr; }
@@ -1774,6 +1791,15 @@ updateLiveClock();
 setInterval(updateLiveClock, 15000);
 let ROWS = [];
 let MY_NAME = '';
+let VISIT_LOGGED_THIS_SESSION_ = false;
+// Καταγράφει την επίσκεψη μία φορά ανά άνοιγμα της εφαρμογής, μόνο αφού
+// είναι γνωστό το όνομα (δεν καταγράφεται τίποτα ανώνυμα/IP).
+function maybeLogVisit_(){
+  if (VISIT_LOGGED_THIS_SESSION_ || !MY_NAME) return;
+  VISIT_LOGGED_THIS_SESSION_ = true;
+  const device = /Mobi|Android/i.test(navigator.userAgent) ? 'Κινητό' : 'Υπολογιστής';
+  apiPost({ action:'logVisit', name: MY_NAME, device }).catch(() => { /* σιωπηλή αποτυχία -- δεν επηρεάζει τη χρήση της εφαρμογής */ });
+}
 let currentView = 'list'; // 'list' ή 'grid' -- πάντα ξεκινάει από 'list'
 let calDate = new Date(); calDate.setDate(1); calDate.setHours(0,0,0,0);
 const MONTHS_FULL_EL = ['Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος','Μάιος','Ιούνιος','Ιούλιος','Αύγουστος','Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος'];
@@ -2324,6 +2350,7 @@ async function onInterest(id){
     const name = await askName();
     if (!name) return;
     MY_NAME = name;
+    maybeLogVisit_();
   }
   const row = ROWS.find(r => r.ID === id);
   const alreadyIn = row && (row['Ενδιαφερόμενοι'] || '').split(',').map(s=>s.trim()).includes(MY_NAME);
@@ -2342,6 +2369,7 @@ async function onMaybe(id){
     const name = await askName();
     if (!name) return;
     MY_NAME = name;
+    maybeLogVisit_();
   }
   const res = await apiPost({ action:'maybe', id, name: MY_NAME });
   if (res.ok){
@@ -2397,6 +2425,7 @@ async function openChatModal(expeditionId, title){
     const name = await askName();
     if (!name) return; // ακύρωσε -- δεν ανοίγει το chat χωρίς όνομα
     MY_NAME = name;
+    maybeLogVisit_();
   }
   CHAT_EXPEDITION_ID = expeditionId;
   document.getElementById('chatModalTitle').textContent = title || '';
@@ -2617,6 +2646,7 @@ document.getElementById('chatForm').addEventListener('submit', async (e) => {
     const name = await askName();
     if (!name) return;
     MY_NAME = name;
+    maybeLogVisit_();
   }
   const input = document.getElementById('chatInput');
   const text = input.value.trim();
@@ -2836,6 +2866,7 @@ addForm.addEventListener('submit', async (e) => {
   if (!payload.name){ showStatus('Επιλέξτε ή γράψτε ένα όνομα.'); return; }
   if (!fNoDate.checked && !payload.date){ showStatus('Συμπληρώστε ημερομηνία ή επιλέξτε "Πρόταση Summit Squad".'); return; }
   MY_NAME = payload.name;
+  maybeLogVisit_();
   const res = await apiPost(payload);
   if (res.ok){
     addForm.reset();
@@ -3317,6 +3348,8 @@ function renderAdminStats_(stats){
       <td>${p.proposed}</td>
       <td>${p.interested}</td>
       <td>${p.maybe}</td>
+      <td>${p.visits || 0}</td>
+      <td>${p.lastVisitTs ? formatNotifTime_(p.lastVisitTs) : '—'}</td>
       <td>${p.lastCommentTs ? formatNotifTime_(p.lastCommentTs) : '—'}</td>
     </tr>
   `).join('');
@@ -3337,28 +3370,91 @@ function renderAdminStats_(stats){
     </div>
   `).join('');
 
+  const inactiveTags = stats.inactiveMembers.length
+    ? stats.inactiveMembers.map(n => `<span class="stats-tag">${escapeHtml(n)}</span>`).join('')
+    : '<span class="stats-note">Όλα τα μέλη του ρόστερ έχουν κάποια δραστηριότητα 🎉</span>';
+
+  const zeroExpTags = stats.zeroEngagementExpeditions.length
+    ? stats.zeroEngagementExpeditions.map(ex => `<span class="stats-tag">${escapeHtml(ex.title)}${!ex.hasDate ? ' 🎒' : ''}</span>`).join('')
+    : '<span class="stats-note">Όλες οι εξορμήσεις έχουν κάποια απήχηση 🎉</span>';
+
+  const deviceTags = Object.entries(stats.deviceCounts).length
+    ? Object.entries(stats.deviceCounts).map(([device, count]) => `<span class="stats-tag">${escapeHtml(device)}: ${count}</span>`).join('')
+    : '<span class="stats-note">Καμία επίσκεψη έχει καταγραφεί ακόμα.</span>';
+
+  const durationRows = Object.entries(stats.durationCounts).map(([k, v]) => `<tr><td>${escapeHtml(k)}</td><td>${v}</td></tr>`).join('');
+  const stayRows = Object.entries(stats.stayCounts).map(([k, v]) => `<tr><td>${escapeHtml(k)}</td><td>${v}</td></tr>`).join('');
+
+  const maxVisits = Math.max(1, ...stats.visitsPerDay.map(d => d.count));
+  const visitsBarsHtml = stats.visitsPerDay.map(d => {
+    const pct = Math.max(Math.round((d.count / maxVisits) * 100), d.count > 0 ? 6 : 2);
+    return `<div class="stats-bar" style="height:${pct}%" title="${d.date}: ${d.count} επισκέψεις"></div>`;
+  }).join('');
+  const firstDay = stats.visitsPerDay[0] ? stats.visitsPerDay[0].date : '';
+  const lastDay = stats.visitsPerDay[stats.visitsPerDay.length - 1] ? stats.visitsPerDay[stats.visitsPerDay.length - 1].date : '';
+
   document.getElementById('adminStatsContent').innerHTML = `
     <div class="stats-summary-row">
       <div class="stats-summary-pill"><span class="num">${stats.totalExpeditions}</span><span class="label">Εξορμήσεις</span></div>
       <div class="stats-summary-pill"><span class="num">${stats.totalComments}</span><span class="label">Σχόλια</span></div>
+      <div class="stats-summary-pill"><span class="num">${stats.totalVisits}</span><span class="label">Επισκέψεις</span></div>
       <div class="stats-summary-pill"><span class="num">${stats.people.length}</span><span class="label">Ενεργά μέλη</span></div>
     </div>
 
-    <div class="stats-grid-2col">
-      <div class="stats-section">
-        <h4>Δραστηριότητα ανά άτομο</h4>
-        <table class="stats-table">
-          <thead><tr><th>Όνομα</th><th>Σχόλια</th><th>Πρότεινε</th><th>Θα έρθω</th><th>Το σκέφτομαι</th><th>Τελευταίο σχόλιο</th></tr></thead>
-          <tbody>${peopleRows || '<tr><td colspan="6">Καμία δραστηριότητα ακόμα.</td></tr>'}</tbody>
-        </table>
-      </div>
+    <div class="stats-section">
+      <h4>Δραστηριότητα ανά άτομο</h4>
+      <table class="stats-table">
+        <thead><tr><th>Όνομα</th><th>Σχόλια</th><th>Πρότεινε</th><th>Θα έρθω</th><th>Το σκέφτομαι</th><th>Επισκέψεις</th><th>Τελ. επίσκεψη</th><th>Τελ. σχόλιο</th></tr></thead>
+        <tbody>${peopleRows || '<tr><td colspan="8">Καμία δραστηριότητα ακόμα.</td></tr>'}</tbody>
+      </table>
+    </div>
 
+    <div class="stats-section">
+      <h4>Επισκέψεις τελευταίων 30 ημερών</h4>
+      <div class="stats-bars">${visitsBarsHtml}</div>
+      <div class="stats-bars-labels"><span>${firstDay}</span><span>${lastDay}</span></div>
+      <div class="stats-tags-row" style="margin-top:12px;">${deviceTags}</div>
+    </div>
+
+    <div class="stats-grid-2col">
       <div class="stats-section">
         <h4>Δημοφιλέστερες εξορμήσεις</h4>
         <table class="stats-table">
           <thead><tr><th>Εξόρμηση</th><th>Θα έρθω</th><th>Το σκέφτομαι</th><th>Σχόλια</th></tr></thead>
           <tbody>${expeditionRows || '<tr><td colspan="4">Καμία ακόμα.</td></tr>'}</tbody>
         </table>
+      </div>
+
+      <div class="stats-section">
+        <h4>Γενικά νούμερα</h4>
+        <div class="stats-summary-row">
+          <div class="stats-summary-pill"><span class="num">${stats.upcomingCount}</span><span class="label">Μελλοντικές</span></div>
+          <div class="stats-summary-pill"><span class="num">${stats.pastCount}</span><span class="label">Περασμένες</span></div>
+          <div class="stats-summary-pill"><span class="num">${stats.noDateCount}</span><span class="label">Summit Squad 🎒</span></div>
+        </div>
+        <div class="stats-note">Μ.Ο. ${stats.avgCommentsPerExpedition.toFixed(1)} σχόλια και ${stats.avgInterestedPerExpedition.toFixed(1)} "θα έρθω" ανά εξόρμηση.</div>
+      </div>
+    </div>
+
+    <div class="stats-grid-2col">
+      <div class="stats-section">
+        <h4>Κατανομή διάρκειας</h4>
+        <table class="stats-table"><tbody>${durationRows || '<tr><td>—</td></tr>'}</tbody></table>
+      </div>
+      <div class="stats-section">
+        <h4>Κατανομή διαμονής</h4>
+        <table class="stats-table"><tbody>${stayRows || '<tr><td>—</td></tr>'}</tbody></table>
+      </div>
+    </div>
+
+    <div class="stats-grid-2col">
+      <div class="stats-section">
+        <h4>Ανενεργά μέλη (ρόστερ)</h4>
+        <div class="stats-tags-row">${inactiveTags}</div>
+      </div>
+      <div class="stats-section">
+        <h4>Εξορμήσεις χωρίς απήχηση</h4>
+        <div class="stats-tags-row">${zeroExpTags}</div>
       </div>
     </div>
 
@@ -3367,7 +3463,7 @@ function renderAdminStats_(stats){
       ${activityItems || '<div class="chat-empty">Καμία δραστηριότητα ακόμα.</div>'}
     </div>
 
-    <div class="stats-note">Σημείωση: δεν εμφανίζονται επισκέψεις ή διευθύνσεις IP -- το Google Apps Script δεν εκθέτει αυτά τα στοιχεία. Τα παραπάνω προκύπτουν αποκλειστικά από ήδη υπάρχοντα δεδομένα (σχόλια, δηλώσεις ενδιαφέροντος).</div>
+    <div class="stats-note">Σημείωση: δεν εμφανίζονται διευθύνσεις IP -- το Google Apps Script δεν εκθέτει αυτό το στοιχείο. Οι επισκέψεις καταγράφονται μόνο αφού κάποιος δηλώσει όνομα στην εφαρμογή.</div>
   `;
 }
 
