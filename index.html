@@ -1093,6 +1093,54 @@
     font-size:13px; color: var(--text);
   }
 
+  /* ---- Ομαδοποίηση ενοτήτων στατιστικών (πιο ευανάγνωστο dashboard) ---- */
+  .stats-group{ margin-bottom:36px; }
+  .stats-group:last-child{ margin-bottom:0; }
+  .stats-group-title{
+    font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em;
+    color: var(--accent); margin:0 0 16px; padding-bottom:8px;
+    border-bottom:2px solid var(--accent-soft);
+    display:flex; align-items:center; gap:8px;
+  }
+  .stats-table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .stats-table-wrap .stats-table{ min-width:560px; }
+  .stats-mini{ font-size:12px; color: var(--text-dim); white-space:nowrap; }
+  .stats-streak-badge{
+    display:inline-block; padding:2px 8px; border-radius:10px;
+    background: var(--accent-soft); color: var(--navy); font-size:12px; font-weight:700;
+  }
+  .stats-readrate-row{ display:flex; gap:14px; flex-wrap:wrap; }
+  .stats-readrate-pill{
+    flex:1; min-width:150px;
+    background: var(--surface-2); border:1px solid var(--border); border-radius:12px;
+    padding:12px 14px;
+  }
+  .stats-readrate-pill .label{ font-size:12.5px; color: var(--text-dim); display:block; margin-bottom:4px; }
+  .stats-readrate-pill .fraction{ font-size:20px; font-weight:700; color: var(--navy); }
+  .stats-readrate-pill .pct{ font-size:12.5px; color: var(--text-dim); margin-left:4px; }
+  .stats-progress-track{ height:6px; border-radius:4px; background: var(--border); overflow:hidden; margin-top:8px; }
+  .stats-progress-fill{ height:100%; background: var(--moss); border-radius:4px; }
+  .stats-weekday-bars{
+    display:flex; align-items:flex-end; gap:6px; height:80px;
+    padding:8px 4px 0; background: var(--surface-2); border-radius:10px 10px 0 0;
+  }
+  .stats-weekday-bar-wrap{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
+  .stats-weekday-bar{ width:100%; background: var(--moss); border-radius:2px 2px 0 0; min-height:2px; }
+  .stats-weekday-labels{
+    display:flex; justify-content:space-between; font-size:11px; color: var(--text-dim);
+    padding:4px 6px 0; background: var(--surface-2); border-radius:0 0 10px 10px;
+  }
+  .stats-month-bars{
+    display:flex; align-items:flex-end; gap:4px; height:80px;
+    padding:8px 4px 0; background: var(--surface-2); border-radius:10px 10px 0 0;
+  }
+  .stats-month-bar-wrap{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
+  .stats-month-bar{ width:100%; background: var(--accent); border-radius:2px 2px 0 0; min-height:2px; }
+  .stats-month-labels{
+    display:flex; justify-content:space-between; font-size:10px; color: var(--text-dim);
+    padding:4px 3px 0; background: var(--surface-2); border-radius:0 0 10px 10px;
+  }
+
   @media (max-width: 620px){
     .card-face{ grid-template-columns: 60px 1fr; }
     .card-actions{ grid-column: 1 / -1; flex-direction:row; flex-wrap:wrap; justify-content:flex-end; }
@@ -3703,7 +3751,11 @@ document.getElementById('adminStatsClose').addEventListener('click', () => {
 });
 
 function renderAdminStats_(stats){
-  const peopleRows = stats.people.map(p => `
+  const peopleRows = stats.people.map(p => {
+    const deviceLabel = Object.entries(p.devices || {})
+      .map(([d, c]) => `${d === 'Κινητό' ? '📱' : (d === 'Υπολογιστής' ? '💻' : '❓')} ${c}`)
+      .join(' · ') || '—';
+    return `
     <tr>
       <td>${escapeHtml(p.name)}</td>
       <td>${p.comments}</td>
@@ -3711,10 +3763,13 @@ function renderAdminStats_(stats){
       <td>${p.interested}</td>
       <td>${p.maybe}</td>
       <td>${p.visits || 0}</td>
+      <td class="stats-mini">${deviceLabel}</td>
+      <td>${p.longestStreak ? `<span class="stats-streak-badge">${p.longestStreak} ${p.longestStreak === 1 ? 'μέρα' : 'μέρες'}</span>` : '—'}</td>
       <td>${p.lastVisitTs ? formatNotifTime_(p.lastVisitTs) : '—'}</td>
       <td>${p.lastCommentTs ? formatNotifTime_(p.lastCommentTs) : '—'}</td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 
   const expeditionRows = stats.expeditions.slice(0, 10).map(ex => `
     <tr>
@@ -3755,64 +3810,119 @@ function renderAdminStats_(stats){
   const firstDay = stats.visitsPerDay[0] ? stats.visitsPerDay[0].date : '';
   const lastDay = stats.visitsPerDay[stats.visitsPerDay.length - 1] ? stats.visitsPerDay[stats.visitsPerDay.length - 1].date : '';
 
+  // ---- Επισκέψεις ανά ημέρα εβδομάδας ----
+  const WEEKDAY_LABELS_ = ['Κυρ', 'Δευ', 'Τρί', 'Τετ', 'Πέμ', 'Παρ', 'Σάβ'];
+  const maxWeekday = Math.max(1, ...(stats.weekdayCounts || []));
+  const weekdayBarsHtml = (stats.weekdayCounts || []).map((c, i) => {
+    const pct = Math.max(Math.round((c / maxWeekday) * 100), c > 0 ? 6 : 2);
+    return `<div class="stats-weekday-bar-wrap"><div class="stats-weekday-bar" style="height:${pct}%" title="${WEEKDAY_LABELS_[i]}: ${c} επισκέψεις"></div></div>`;
+  }).join('');
+  const weekdayLabelsHtml = WEEKDAY_LABELS_.map(l => `<span>${l}</span>`).join('');
+
+  // ---- Εποχικότητα εξορμήσεων ανά μήνα ----
+  const MONTH_SHORT_ = ['Ιαν','Φεβ','Μάρ','Απρ','Μάι','Ιούν','Ιούλ','Αύγ','Σεπ','Οκτ','Νοέ','Δεκ'];
+  const monthData = stats.monthCounts || [];
+  const maxMonth = Math.max(1, ...monthData.map(m => m.count));
+  const monthBarsHtml = monthData.map((m, i) => {
+    const pct = Math.max(Math.round((m.count / maxMonth) * 100), m.count > 0 ? 6 : 2);
+    return `<div class="stats-month-bar-wrap"><div class="stats-month-bar" style="height:${pct}%" title="${m.month}: ${m.count} εξορμήσεις"></div></div>`;
+  }).join('');
+  const monthLabelsHtml = MONTH_SHORT_.map(l => `<span>${l}</span>`).join('');
+
+  // ---- Ποσοστό διαβασμένων ειδοποιήσεων ----
+  const readPill_ = (label, r) => {
+    const pct = r && r.total ? Math.round((r.read / r.total) * 100) : 0;
+    return `
+      <div class="stats-readrate-pill">
+        <span class="label">${label}</span>
+        <span class="fraction">${r ? r.read : 0}/${r ? r.total : 0}</span><span class="pct">(${pct}%)</span>
+        <div class="stats-progress-track"><div class="stats-progress-fill" style="width:${pct}%"></div></div>
+      </div>`;
+  };
+  const nrs = stats.notifReadStats || {};
+
   document.getElementById('adminStatsContent').innerHTML = `
-    <div class="stats-summary-row">
-      <div class="stats-summary-pill"><span class="num">${stats.totalExpeditions}</span><span class="label">Εξορμήσεις</span></div>
-      <div class="stats-summary-pill"><span class="num">${stats.totalComments}</span><span class="label">Σχόλια</span></div>
-      <div class="stats-summary-pill"><span class="num">${stats.totalVisits}</span><span class="label">Επισκέψεις</span></div>
-      <div class="stats-summary-pill"><span class="num">${stats.people.length}</span><span class="label">Ενεργά μέλη</span></div>
-    </div>
 
-    <div class="stats-section">
-      <h4>Δραστηριότητα ανά άτομο</h4>
-      <table class="stats-table">
-        <thead><tr><th>Όνομα</th><th>Σχόλια</th><th>Πρότεινε</th><th>Θα έρθω</th><th>Το σκέφτομαι</th><th>Επισκέψεις</th><th>Τελ. επίσκεψη</th><th>Τελ. σχόλιο</th></tr></thead>
-        <tbody>${peopleRows || '<tr><td colspan="8">Καμία δραστηριότητα ακόμα.</td></tr>'}</tbody>
-      </table>
-    </div>
-
-    <div class="stats-section">
-      <h4>Επισκέψεις τελευταίων 30 ημερών</h4>
-      <div class="stats-bars">${visitsBarsHtml}</div>
-      <div class="stats-bars-labels"><span>${firstDay}</span><span>${lastDay}</span></div>
-      <div class="stats-tags-row" style="margin-top:12px;">${deviceTags}</div>
-    </div>
-
-    <div class="stats-grid-2col">
-      <div class="stats-section">
-        <h4>Δημοφιλέστερες εξορμήσεις</h4>
-        <table class="stats-table">
-          <thead><tr><th>Εξόρμηση</th><th>Θα έρθω</th><th>Το σκέφτομαι</th><th>Σχόλια</th></tr></thead>
-          <tbody>${expeditionRows || '<tr><td colspan="4">Καμία ακόμα.</td></tr>'}</tbody>
-        </table>
+    <div class="stats-group">
+      <div class="stats-group-title">📊 Επισκόπηση</div>
+      <div class="stats-summary-row">
+        <div class="stats-summary-pill"><span class="num">${stats.totalExpeditions}</span><span class="label">Εξορμήσεις</span></div>
+        <div class="stats-summary-pill"><span class="num">${stats.totalComments}</span><span class="label">Σχόλια</span></div>
+        <div class="stats-summary-pill"><span class="num">${stats.totalVisits}</span><span class="label">Επισκέψεις</span></div>
+        <div class="stats-summary-pill"><span class="num">${stats.people.length}</span><span class="label">Ενεργά μέλη</span></div>
+        <div class="stats-summary-pill"><span class="num">${stats.rosterActiveCount}/${stats.rosterSize}</span><span class="label">Κάλυψη ρόστερ</span></div>
+        <div class="stats-summary-pill"><span class="num">${stats.newArrivals7d}</span><span class="label">Νέες αφίξεις (7ημ.)</span></div>
       </div>
+    </div>
 
+    <div class="stats-group">
+      <div class="stats-group-title">👤 Άτομα</div>
       <div class="stats-section">
-        <h4>Γενικά νούμερα</h4>
-        <div class="stats-summary-row">
-          <div class="stats-summary-pill"><span class="num">${stats.upcomingCount}</span><span class="label">Μελλοντικές</span></div>
-          <div class="stats-summary-pill"><span class="num">${stats.pastCount}</span><span class="label">Περασμένες</span></div>
-          <div class="stats-summary-pill"><span class="num">${stats.noDateCount}</span><span class="label">Summit Squad 🎒</span></div>
+        <h4>Δραστηριότητα ανά άτομο</h4>
+        <div class="stats-table-wrap">
+          <table class="stats-table">
+            <thead><tr><th>Όνομα</th><th>Σχόλια</th><th>Πρότεινε</th><th>Θα έρθω</th><th>Το σκέφτομαι</th><th>Επισκέψεις</th><th>Συσκευές</th><th>Καλύτ. σερί</th><th>Τελ. επίσκεψη</th><th>Τελ. σχόλιο</th></tr></thead>
+            <tbody>${peopleRows || '<tr><td colspan="10">Καμία δραστηριότητα ακόμα.</td></tr>'}</tbody>
+          </table>
         </div>
-        <div class="stats-note">Μ.Ο. ${stats.avgCommentsPerExpedition.toFixed(1)} σχόλια και ${stats.avgInterestedPerExpedition.toFixed(1)} "θα έρθω" ανά εξόρμηση.</div>
       </div>
-    </div>
-
-    <div class="stats-grid-2col">
-      <div class="stats-section">
-        <h4>Κατανομή διάρκειας</h4>
-        <table class="stats-table"><tbody>${durationRows || '<tr><td>—</td></tr>'}</tbody></table>
-      </div>
-      <div class="stats-section">
-        <h4>Κατανομή διαμονής</h4>
-        <table class="stats-table"><tbody>${stayRows || '<tr><td>—</td></tr>'}</tbody></table>
-      </div>
-    </div>
-
-    <div class="stats-grid-2col">
       <div class="stats-section">
         <h4>Ανενεργά μέλη (ρόστερ)</h4>
         <div class="stats-tags-row">${inactiveTags}</div>
+      </div>
+    </div>
+
+    <div class="stats-group">
+      <div class="stats-group-title">📅 Επισκεψιμότητα</div>
+      <div class="stats-section">
+        <h4>Επισκέψεις τελευταίων 30 ημερών</h4>
+        <div class="stats-bars">${visitsBarsHtml}</div>
+        <div class="stats-bars-labels"><span>${firstDay}</span><span>${lastDay}</span></div>
+        <div class="stats-tags-row" style="margin-top:12px;">${deviceTags}</div>
+      </div>
+      <div class="stats-section">
+        <h4>Επισκέψεις ανά ημέρα εβδομάδας (όλο το ιστορικό)</h4>
+        <div class="stats-weekday-bars">${weekdayBarsHtml}</div>
+        <div class="stats-weekday-labels">${weekdayLabelsHtml}</div>
+      </div>
+    </div>
+
+    <div class="stats-group">
+      <div class="stats-group-title">🏔️ Εξορμήσεις</div>
+      <div class="stats-grid-2col">
+        <div class="stats-section">
+          <h4>Δημοφιλέστερες εξορμήσεις</h4>
+          <div class="stats-table-wrap">
+            <table class="stats-table">
+              <thead><tr><th>Εξόρμηση</th><th>Θα έρθω</th><th>Το σκέφτομαι</th><th>Σχόλια</th></tr></thead>
+              <tbody>${expeditionRows || '<tr><td colspan="4">Καμία ακόμα.</td></tr>'}</tbody>
+            </table>
+          </div>
+        </div>
+        <div class="stats-section">
+          <h4>Γενικά νούμερα</h4>
+          <div class="stats-summary-row">
+            <div class="stats-summary-pill"><span class="num">${stats.upcomingCount}</span><span class="label">Μελλοντικές</span></div>
+            <div class="stats-summary-pill"><span class="num">${stats.pastCount}</span><span class="label">Περασμένες</span></div>
+            <div class="stats-summary-pill"><span class="num">${stats.noDateCount}</span><span class="label">Summit Squad 🎒</span></div>
+          </div>
+          <div class="stats-note">Μ.Ο. ${stats.avgCommentsPerExpedition.toFixed(1)} σχόλια και ${stats.avgInterestedPerExpedition.toFixed(1)} "θα έρθω" ανά εξόρμηση.</div>
+        </div>
+      </div>
+      <div class="stats-section">
+        <h4>Εποχικότητα (μήνας πεζοπορίας, όλα τα έτη)</h4>
+        <div class="stats-month-bars">${monthBarsHtml}</div>
+        <div class="stats-month-labels">${monthLabelsHtml}</div>
+      </div>
+      <div class="stats-grid-2col">
+        <div class="stats-section">
+          <h4>Κατανομή διάρκειας</h4>
+          <table class="stats-table"><tbody>${durationRows || '<tr><td>—</td></tr>'}</tbody></table>
+        </div>
+        <div class="stats-section">
+          <h4>Κατανομή διαμονής</h4>
+          <table class="stats-table"><tbody>${stayRows || '<tr><td>—</td></tr>'}</tbody></table>
+        </div>
       </div>
       <div class="stats-section">
         <h4>Εξορμήσεις χωρίς απήχηση</h4>
@@ -3820,9 +3930,23 @@ function renderAdminStats_(stats){
       </div>
     </div>
 
-    <div class="stats-section">
-      <h4>Πρόσφατη δραστηριότητα</h4>
-      ${activityItems || '<div class="chat-empty">Καμία δραστηριότητα ακόμα.</div>'}
+    <div class="stats-group">
+      <div class="stats-group-title">🔔 Ειδοποιήσεις</div>
+      <div class="stats-section">
+        <h4>Ποσοστό διαβασμένων (τουλάχιστον από ένα άτομο)</h4>
+        <div class="stats-readrate-row">
+          ${readPill_('Εξορμήσεις', nrs.notif)}
+          ${readPill_('Summit Squad', nrs.ss)}
+          ${readPill_('Σχόλια', nrs.comment)}
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-group">
+      <div class="stats-group-title">🕒 Πρόσφατη δραστηριότητα</div>
+      <div class="stats-section">
+        ${activityItems || '<div class="chat-empty">Καμία δραστηριότητα ακόμα.</div>'}
+      </div>
     </div>
 
     <div class="stats-note">Σημείωση: δεν εμφανίζονται διευθύνσεις IP -- το Google Apps Script δεν εκθέτει αυτό το στοιχείο. Οι επισκέψεις καταγράφονται μόνο αφού κάποιος δηλώσει όνομα στην εφαρμογή.</div>
