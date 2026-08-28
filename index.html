@@ -984,9 +984,19 @@
   .admin-line a:hover{ opacity:1; text-decoration:underline; }
   .admin-line a.is-admin{ color: var(--moss); opacity:0.9; }
 
-  .admin-stats-box{ max-width:640px; width:94%; max-height:84vh; overflow-y:auto; }
+  .admin-stats-box{ max-width:640px; width:94%; max-height:88vh; overflow-y:auto; }
+  @media (min-width: 768px){
+    .admin-stats-box{ max-width:920px; }
+  }
+  @media (min-width: 1100px){
+    .admin-stats-box{ max-width:1100px; }
+  }
   .admin-stats-content{ text-align:left; }
   .stats-section{ margin-bottom:20px; }
+  .stats-grid-2col{ display:block; }
+  @media (min-width: 768px){
+    .stats-grid-2col{ display:grid; grid-template-columns: 1fr 1fr; gap:24px; align-items:start; }
+  }
   .stats-section h4{
     font-family:Calibri, Carlito, sans-serif; font-size:15.5px; margin:0 0 8px;
     color: var(--text-dim); text-transform:uppercase; letter-spacing:0.03em;
@@ -999,7 +1009,7 @@
   }
   .stats-summary-pill .num{ font-size:26px; font-weight:700; color: var(--navy); display:block; }
   .stats-summary-pill .label{ font-size:12.5px; color: var(--text-dim); }
-  .stats-table{ width:100%; border-collapse:collapse; font-size:14px; }
+  .stats-table{ width:100%; border-collapse:collapse; font-size:15px; }
   .stats-table th{
     text-align:left; font-size:12px; color: var(--text-dim); font-weight:600;
     padding:6px 8px; border-bottom:1px solid var(--border);
@@ -3334,20 +3344,22 @@ function renderAdminStats_(stats){
       <div class="stats-summary-pill"><span class="num">${stats.people.length}</span><span class="label">Ενεργά μέλη</span></div>
     </div>
 
-    <div class="stats-section">
-      <h4>Δραστηριότητα ανά άτομο</h4>
-      <table class="stats-table">
-        <thead><tr><th>Όνομα</th><th>Σχόλια</th><th>Πρότεινε</th><th>Θα έρθω</th><th>Το σκέφτομαι</th><th>Τελευταίο σχόλιο</th></tr></thead>
-        <tbody>${peopleRows || '<tr><td colspan="6">Καμία δραστηριότητα ακόμα.</td></tr>'}</tbody>
-      </table>
-    </div>
+    <div class="stats-grid-2col">
+      <div class="stats-section">
+        <h4>Δραστηριότητα ανά άτομο</h4>
+        <table class="stats-table">
+          <thead><tr><th>Όνομα</th><th>Σχόλια</th><th>Πρότεινε</th><th>Θα έρθω</th><th>Το σκέφτομαι</th><th>Τελευταίο σχόλιο</th></tr></thead>
+          <tbody>${peopleRows || '<tr><td colspan="6">Καμία δραστηριότητα ακόμα.</td></tr>'}</tbody>
+        </table>
+      </div>
 
-    <div class="stats-section">
-      <h4>Δημοφιλέστερες εξορμήσεις</h4>
-      <table class="stats-table">
-        <thead><tr><th>Εξόρμηση</th><th>Θα έρθω</th><th>Το σκέφτομαι</th><th>Σχόλια</th></tr></thead>
-        <tbody>${expeditionRows || '<tr><td colspan="4">Καμία ακόμα.</td></tr>'}</tbody>
-      </table>
+      <div class="stats-section">
+        <h4>Δημοφιλέστερες εξορμήσεις</h4>
+        <table class="stats-table">
+          <thead><tr><th>Εξόρμηση</th><th>Θα έρθω</th><th>Το σκέφτομαι</th><th>Σχόλια</th></tr></thead>
+          <tbody>${expeditionRows || '<tr><td colspan="4">Καμία ακόμα.</td></tr>'}</tbody>
+        </table>
+      </div>
     </div>
 
     <div class="stats-section">
