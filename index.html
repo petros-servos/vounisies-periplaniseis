@@ -3389,7 +3389,8 @@ fMonth.addEventListener('change', () => {
 //
 // Το ΠΟΙΕΣ έχεις ήδη δει (read) ή θέλεις να αγνοήσεις (dismiss) παραμένει
 // προσωπικό ανά συσκευή/browser -- αυτό αποθηκεύεται τοπικά.
-const NOTIF_HISTORY_MAX = 5;
+const NOTIF_HISTORY_MAX = 10;
+const SS_NOTIF_HISTORY_MAX = 5;
 const isSSRow_ = (r) => !r['Ημερομηνία'];
 
 function loadIdSet_(key){
@@ -3465,13 +3466,13 @@ async function syncNotifStateFromServer_(){
   } catch(e){ /* σιωπηλή αποτυχία -- συνεχίζουμε με την τοπική κατάσταση */ }
 }
 
-// Υπολογίζει ζωντανά τις τελευταίες (έως 5) εξορμήσεις μιας κατηγορίας
+// Υπολογίζει ζωντανά τις τελευταίες (έως limit) εξορμήσεις μιας κατηγορίας
 // (γενικές ή Summit Squad), με βάση την κοινή χρονοσήμανση του Sheet.
-function computeNotifList_(wantSS, dismissedSet, readSet){
+function computeNotifList_(wantSS, dismissedSet, readSet, limit){
   return ROWS
     .filter(r => r['Χρόνος Ειδοποίησης'] && isSSRow_(r) === wantSS && !dismissedSet.has(r.ID))
     .sort((a, b) => new Date(b['Χρόνος Ειδοποίησης']) - new Date(a['Χρόνος Ειδοποίησης']))
-    .slice(0, NOTIF_HISTORY_MAX)
+    .slice(0, limit)
     .map(r => ({
       id: r.ID,
       title: r['Σχόλια'] || (wantSS ? 'Νέα πρόταση Summit Squad' : 'Νέα εξόρμηση'),
@@ -3484,7 +3485,7 @@ function computeNotifList_(wantSS, dismissedSet, readSet){
 function renderNotifs(){
   const badge = document.getElementById('notifBadge');
   const list = document.getElementById('notifList');
-  const items = computeNotifList_(false, NOTIF_DISMISSED_IDS, NOTIF_READ_IDS);
+  const items = computeNotifList_(false, NOTIF_DISMISSED_IDS, NOTIF_READ_IDS, NOTIF_HISTORY_MAX);
   if (items.length === 0){
     badge.classList.remove('show');
     list.innerHTML = '<div class="notif-empty">Καμία πρόσφατη προσθήκη</div>';
@@ -3539,7 +3540,7 @@ function goToNotif(id){
 function renderSSNotifs(){
   const badge = document.getElementById('ssNotifBadge');
   const list = document.getElementById('ssNotifList');
-  const items = computeNotifList_(true, SS_NOTIF_DISMISSED_IDS, SS_NOTIF_READ_IDS);
+  const items = computeNotifList_(true, SS_NOTIF_DISMISSED_IDS, SS_NOTIF_READ_IDS, SS_NOTIF_HISTORY_MAX);
   if (items.length === 0){
     badge.classList.remove('show');
     list.innerHTML = '<div class="ss-notif-empty">Καμία πρόσφατη προσθήκη</div>';
