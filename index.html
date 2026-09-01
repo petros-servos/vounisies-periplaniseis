@@ -623,6 +623,24 @@
     border-color:#5c4f8a;
     color:#d9cdf5;
   }
+  .search-wrap{ position:relative; flex:1 1 220px; min-width:180px; }
+  .search-wrap input.search-input{
+    width:100%; padding-right:30px; transition: background .25s ease, border-color .25s ease;
+  }
+  .search-wrap input.search-input.filter-active{
+    background:#f3e9d8;
+    border-color:#e3d2ac;
+  }
+  html[data-theme="dark"] .search-wrap input.search-input.filter-active{
+    background:#3a3324;
+    border-color:#5c4f34;
+  }
+  .search-clear{
+    position:absolute; right:4px; top:50%; transform:translateY(-50%);
+    width:24px; height:24px; border:none; background:transparent; cursor:pointer;
+    color: var(--text-dim); font-size:18px; line-height:1; border-radius:50%;
+  }
+  .search-clear:hover{ background: var(--surface-2); color: var(--text); }
   button{
     font-family: Calibri, Carlito, sans-serif;
     font-weight:600;
@@ -2053,6 +2071,10 @@
 
   <div class="toolbar">
     <div class="filters">
+      <div class="search-wrap">
+        <input type="text" id="fSearch" class="search-input" placeholder="🔍 Αναζήτηση (λέξη ή ημερομηνία)" autocomplete="off">
+        <button type="button" id="fSearchClear" class="search-clear" title="Καθαρισμός" style="display:none;">×</button>
+      </div>
       <select id="fMonth"><option value="">Όλοι οι μήνες</option></select>
       <select id="fDuration"><option value="">Κάθε διάρκεια</option></select>
       <select id="fStay"><option value="">Κάθε διαμονή</option></select>
@@ -2174,6 +2196,8 @@ const fMonth = document.getElementById('fMonth');
 const fDuration = document.getElementById('fDuration');
 const fStay = document.getElementById('fStay');
 const fRemember = document.getElementById('fRemember');
+const fSearch = document.getElementById('fSearch');
+const fSearchClear = document.getElementById('fSearchClear');
 
 function showStatus(msg){
   statusBanner.innerHTML = msg;
@@ -2270,6 +2294,78 @@ function fillSelect(select, values, labelFn, placeholder){
   if (values.includes(current)) select.value = current;
 }
 
+// ---- Αναζήτηση: λέξη (από τίτλο/περιγραφή) ή ημερομηνία σε πολλές συνηθισμένες μορφές ----
+const GREEK_MONTHS_MAP_ = {
+  'ιανουαριος':0, 'ιανουαριου':0, 'ιαν':0,
+  'φεβρουαριος':1, 'φεβρουαριου':1, 'φεβ':1,
+  'μαρτιος':2, 'μαρτιου':2, 'μαρ':2,
+  'απριλιος':3, 'απριλιου':3, 'απρ':3,
+  'μαιος':4, 'μαιου':4, 'μαι':4,
+  'ιουνιος':5, 'ιουνιου':5, 'ιουν':5,
+  'ιουλιος':6, 'ιουλιου':6, 'ιουλ':6,
+  'αυγουστος':7, 'αυγουστου':7, 'αυγ':7,
+  'σεπτεμβριος':8, 'σεπτεμβριου':8, 'σεπτεμβρης':8, 'σεπτεμβρη':8, 'σεπ':8, 'σεπτ':8,
+  'οκτωβριος':9, 'οκτωβριου':9, 'οκτ':9,
+  'νοεμβριος':10, 'νοεμβριου':10, 'νοε':10,
+  'δεκεμβριος':11, 'δεκεμβριου':11, 'δεκ':11,
+};
+function stripGreekAccents_(s){
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+// Επιστρέφει { day, month, year } (καθένα null αν δεν προσδιορίστηκε) αν το
+// κείμενο "μοιάζει" με ημερομηνία, αλλιώς null. Καλύπτει: yyyy-mm-dd,
+// dd/mm/yyyy, dd-mm-yyyy, dd.mm.yyyy (και με 2ψήφιο έτος), dd/mm χωρίς έτος,
+// "15 Σεπτεμβρίου" (± έτος), μόνο "Σεπτέμβριος" (± έτος), και μόνο έτος.
+function parseSearchDate_(qRaw){
+  const q = stripGreekAccents_(qRaw.trim().toLowerCase());
+  if (!q) return null;
+  let m;
+  m = q.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) return { year:+m[1], month:+m[2]-1, day:+m[3] };
+  m = q.match(/^(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})$/);
+  if (m){
+    let y = +m[3]; if (y < 100) y += 2000;
+    return { day:+m[1], month:+m[2]-1, year:y };
+  }
+  m = q.match(/^(\d{1,2})[\/\.\-](\d{1,2})$/);
+  if (m) return { day:+m[1], month:+m[2]-1, year:null };
+  m = q.match(/^(\d{1,2})\s+([a-zα-ω]+)(?:\s+(\d{4}))?$/);
+  if (m && GREEK_MONTHS_MAP_[m[2]] !== undefined){
+    return { day:+m[1], month:GREEK_MONTHS_MAP_[m[2]], year: m[3] ? +m[3] : null };
+  }
+  m = q.match(/^([a-zα-ω]+)(?:\s+(\d{4}))?$/);
+  if (m && GREEK_MONTHS_MAP_[m[1]] !== undefined){
+    return { day:null, month:GREEK_MONTHS_MAP_[m[1]], year: m[2] ? +m[2] : null };
+  }
+  m = q.match(/^(\d{4})$/);
+  if (m) return { day:null, month:null, year:+m[1] };
+  return null;
+}
+function rowMatchesDateQuery_(r, dq){
+  if (!dq) return false;
+  const dRaw = r['Ημερομηνία'];
+  if (!dRaw) return false;
+  const d = new Date(dRaw);
+  if (isNaN(d)) return false;
+  if (dq.year !== null && d.getFullYear() !== dq.year) return false;
+  if (dq.month !== null && d.getMonth() !== dq.month) return false;
+  if (dq.day !== null && d.getDate() !== dq.day) return false;
+  return true;
+}
+// Ενιαίο φίλτρο αναζήτησης, εφαρμόζεται και στη λίστα και στο ημερολόγιο:
+// ταιριάζει είτε στον τίτλο/περιγραφή (χωρίς distinction πεζών-κεφαλαίων)
+// είτε στην ημερομηνία της εξόρμησης (αν το κείμενο μοιάζει με ημερομηνία).
+function applySearchFilter_(rows){
+  const qRaw = (fSearch.value || '').trim();
+  if (!qRaw) return rows;
+  const qLower = stripGreekAccents_(qRaw.toLowerCase());
+  const dq = parseSearchDate_(qRaw);
+  return rows.filter(r => {
+    const title = stripGreekAccents_((r['Σχόλια'] || '').toLowerCase());
+    return title.includes(qLower) || rowMatchesDateQuery_(r, dq);
+  });
+}
+
 function render(){
   let rows = [...ROWS];
 
@@ -2281,6 +2377,8 @@ function render(){
   rows = ssFilterActive
     ? rows.filter(r => !r['Ημερομηνία'])
     : rows.filter(r => !!r['Ημερομηνία']);
+
+  rows = applySearchFilter_(rows);
 
   if (fMonth.value){
     rows = rows.filter(r => {
@@ -2323,7 +2421,9 @@ function render(){
   }
 
   if (rows.length === 0){
-    listArea.innerHTML = '<div class="empty-state">Καμία πρόταση εξόρμησης εδώ. Προσθέστε την πρώτη! 🏔️</div>';
+    listArea.innerHTML = fSearch.value.trim()
+      ? `<div class="empty-state">Καμία εξόρμηση δεν ταιριάζει με «${escapeHtml(fSearch.value.trim())}». 🔍</div>`
+      : '<div class="empty-state">Καμία πρόταση εξόρμησης εδώ. Προσθέστε την πρώτη! 🏔️</div>';
     return;
   }
 
@@ -2430,6 +2530,7 @@ ssFilterBtn.addEventListener('click', () => {
 // Ίδια φίλτρα (Διάρκεια/Διαμονή/Για να θυμάμαι) με τη λίστα, χωρίς το φίλτρο μήνα
 function getCalendarFilteredRows(){
   let rows = [...ROWS];
+  rows = applySearchFilter_(rows);
   if (fDuration.value) rows = rows.filter(r => r['Διάρκεια'] === fDuration.value);
   if (fStay.value) rows = rows.filter(r => r['Διαμονή'] === fStay.value);
   if (fRemember.value){
@@ -3251,7 +3352,19 @@ function updateFilterStyles(){
     sel.classList.toggle('filter-active', sel.value !== '');
   });
   fRemember.classList.toggle('remember-active', fRemember.value !== '');
+  fSearch.classList.toggle('filter-active', fSearch.value.trim() !== '');
+  fSearchClear.style.display = fSearch.value.trim() !== '' ? '' : 'none';
 }
+fSearch.addEventListener('input', () => {
+  updateFilterStyles();
+  refreshView();
+});
+fSearchClear.addEventListener('click', () => {
+  fSearch.value = '';
+  updateFilterStyles();
+  fSearch.focus();
+  refreshView();
+});
 fMonth.addEventListener('change', () => {
   updateFilterStyles();
   if (currentView === 'grid' && fMonth.value){
