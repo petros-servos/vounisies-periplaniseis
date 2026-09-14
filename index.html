@@ -1049,19 +1049,45 @@
   .go-btn:hover{ opacity:0.88; }
   .go-btn.active{ background:#2c5c37; border-color:#2c5c37; color:#ffffff; }
 
-  .rsvp-select{
+  /* ---- Custom RSVP dropdown (όχι native <select>) ----
+     Το native select popup σε κινητό (ειδικά iOS) το σχεδιάζει το ίδιο το OS
+     και δεν στυλάρεται καθόλου με CSS -- γι' αυτό φτιάχνουμε δικό μας popup
+     ώστε να ακολουθεί πάντα το θέμα (dark/light). */
+  .rsvp-dropdown{ position:relative; }
+  .rsvp-toggle{
     font-family: Calibri, Carlito, sans-serif;
     font-size:14.7px; font-weight:700;
     padding:9px 10px; border-radius:9px; border:1.5px solid var(--border);
     background: var(--surface-2); color: var(--text);
     cursor:pointer;
+    display:flex; align-items:center; gap:6px;
     transition: background .15s ease, border-color .15s ease, color .15s ease;
   }
-  .rsvp-select.is-in{ background:#2c5c37; border-color:#2c5c37; color:#ffffff; }
-  .rsvp-select.is-maybe{ background:#bcdbf3; border-color:#bcdbf3; color:#204a6b; }
-  .rsvp-select option{ font-weight:700; background: var(--surface-2); color: var(--text); }
-  .rsvp-select option[value="in"]{ color:#2c5c37; }
-  .rsvp-select option[value="maybe"]{ color:#204a6b; }
+  .rsvp-toggle .caret{ font-size:11px; opacity:0.75; }
+  .rsvp-dropdown.is-in .rsvp-toggle{ background:#2c5c37; border-color:#2c5c37; color:#ffffff; }
+  .rsvp-dropdown.is-maybe .rsvp-toggle{ background:#bcdbf3; border-color:#bcdbf3; color:#204a6b; }
+  .rsvp-menu{
+    list-style:none; margin:0; padding:6px;
+    position:absolute; right:0; top:calc(100% + 6px); z-index:60;
+    min-width:170px;
+    background: var(--surface-2);
+    border:1px solid var(--border);
+    border-radius:10px;
+    box-shadow: var(--card-shadow-hover);
+  }
+  .rsvp-menu[hidden]{ display:none; }
+  .rsvp-menu li{
+    font-weight:700; font-size:14.7px;
+    padding:9px 10px; border-radius:7px; cursor:pointer;
+    color: var(--text);
+    white-space:nowrap;
+  }
+  .rsvp-menu li:hover, .rsvp-menu li:focus-visible{ background: var(--hover-glow); color:#1c2333; }
+  .rsvp-menu li[data-value="in"]{ color:#2c5c37; }
+  .rsvp-menu li[data-value="maybe"]{ color:#204a6b; }
+  html[data-theme="dark"] .rsvp-menu li[data-value="in"]{ color:#7fcf91; }
+  html[data-theme="dark"] .rsvp-menu li[data-value="maybe"]{ color:#bcdbf3; }
+  .rsvp-menu li.selected{ background: var(--accent-soft); }
 
   footer{
     text-align:center;
@@ -2553,10 +2579,35 @@ function wireBackToTop(){
   }
 }
 
+function closeAllRsvpMenus_(){
+  document.querySelectorAll('.rsvp-menu').forEach(m => { m.hidden = true; });
+  document.querySelectorAll('.rsvp-toggle[aria-expanded="true"]').forEach(t => t.setAttribute('aria-expanded', 'false'));
+}
+document.addEventListener('click', closeAllRsvpMenus_);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAllRsvpMenus_(); });
+
 function wireCardEvents(container){
   container = container || listArea;
-  container.querySelectorAll('[data-rsvp]').forEach(sel => {
-    sel.addEventListener('change', () => onRSVPChange(sel.dataset.rsvp, sel.value));
+  container.querySelectorAll('.rsvp-dropdown').forEach(dd => {
+    const id = dd.dataset.rsvp;
+    const toggle = dd.querySelector('.rsvp-toggle');
+    const menu = dd.querySelector('.rsvp-menu');
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const willOpen = menu.hidden;
+      closeAllRsvpMenus_();
+      if (willOpen){
+        menu.hidden = false;
+        toggle.setAttribute('aria-expanded', 'true');
+      }
+    });
+    menu.querySelectorAll('li').forEach(li => {
+      li.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllRsvpMenus_();
+        onRSVPChange(id, li.dataset.value);
+      });
+    });
   });
   container.querySelectorAll('[data-edit]').forEach(btn => {
     btn.addEventListener('click', () => openEditModal(btn.dataset.edit));
@@ -2841,11 +2892,17 @@ function cardHtml(r, today){
           ${maybe.length ? `<div class="interested maybe-line">💭 <b>${maybe.length}</b> το σκέφτονται: ${escapeHtml(maybe.join(', '))}</div>` : ''}
         </div>
         <div class="card-actions">
-          <select class="rsvp-select ${iAmIn ? 'is-in' : (iAmMaybe ? 'is-maybe' : '')}" data-rsvp="${r.ID}">
-            <option value="" ${(!iAmIn && !iAmMaybe) ? 'selected' : ''}>Συμμετοχή…</option>
-            <option value="in" ${iAmIn ? 'selected' : ''}>✓ Θα έρθω</option>
-            <option value="maybe" ${iAmMaybe ? 'selected' : ''}>💭 Το σκέφτομαι</option>
-          </select>
+          <div class="rsvp-dropdown ${iAmIn ? 'is-in' : (iAmMaybe ? 'is-maybe' : '')}" data-rsvp="${r.ID}">
+            <button type="button" class="rsvp-toggle" aria-haspopup="listbox" aria-expanded="false">
+              <span class="rsvp-toggle-label">${iAmIn ? '✓ Θα έρθω' : (iAmMaybe ? '💭 Το σκέφτομαι' : 'Συμμετοχή…')}</span>
+              <span class="caret">▾</span>
+            </button>
+            <ul class="rsvp-menu" role="listbox" hidden>
+              <li role="option" data-value="" class="${(!iAmIn && !iAmMaybe) ? 'selected' : ''}">Συμμετοχή…</li>
+              <li role="option" data-value="in" class="${iAmIn ? 'selected' : ''}">✓ Θα έρθω</li>
+              <li role="option" data-value="maybe" class="${iAmMaybe ? 'selected' : ''}">💭 Το σκέφτομαι</li>
+            </ul>
+          </div>
           <button class="btn-chat" data-chat="${r.ID}" data-chat-title="${escapeAttr(title)}">💬 Κους Κους${commentCount > 0 ? `<span class="chat-count-badge">${commentCount}</span>` : ''}</button>
           <button class="btn-edit" data-edit="${r.ID}">Επεξεργασία</button>
           <button class="btn-danger" data-del="${r.ID}">Διαγραφή</button>
