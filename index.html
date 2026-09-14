@@ -1479,27 +1479,36 @@
 
   #katafygiaModalOverlay .modal-box{ max-width:980px; width:95vw; max-height:85vh; overflow-y:auto; }
 
-  #weatherModalOverlay .modal-box{ max-width:1000px; width:95vw; }
-  .weather-fallback{
-    font-family:Calibri, Carlito, sans-serif;
-    font-size:14px;
-    color: var(--text-dim);
-    margin-bottom:8px;
-  }
-  .weather-fallback a{ color: var(--accent); font-weight:600; }
-  .weather-iframe{
-    width:100%;
-    height:65vh;
-    border:1px solid var(--border);
-    border-radius:10px;
-    background: var(--surface-2);
-  }
   .btn-weather{
     background: var(--surface-2); border:1px solid var(--border); color: var(--text);
     padding:8px 12px; border-radius:9px; font-size:13.5px; cursor:pointer;
     font-family: Calibri, Carlito, sans-serif;
   }
   .btn-weather:hover{ background: var(--accent-soft); border-color: var(--accent); }
+  .weather-choice-overlay{
+    position:fixed; inset:0; z-index:2500;
+    display:none; align-items:center; justify-content:center;
+    padding:20px; background: rgba(10,20,35,0.55);
+    -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+  }
+  .weather-choice-overlay.show{ display:flex; }
+  .weather-choice-box{
+    width:min(94vw, 380px); background: var(--surface); border-radius:16px;
+    padding:22px 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .weather-choice-title{ font-size:16.5px; font-weight:800; color: var(--navy); margin-bottom:4px; }
+  .weather-choice-link{
+    display:flex; flex-direction:column; gap:2px;
+    padding:12px 14px; border-radius:11px; border:1.5px solid var(--border);
+    background: var(--surface-2); color: var(--text); text-decoration:none;
+    font-family: Calibri, Carlito, sans-serif;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  .weather-choice-link:hover{ background: var(--accent-soft); border-color: var(--accent); }
+  .weather-choice-link .wc-name{ font-size:15px; font-weight:700; }
+  .weather-choice-link .wc-desc{ font-size:12.5px; color: var(--text-dim); }
+  .weather-choice-cancel{ margin-top:4px; align-self:flex-end; }
   .katafygia-body{ font-family:Calibri, Carlito, sans-serif; font-size:15.8px; line-height:1.55; }
   .katafygia-body p{ margin:0 0 14px; }
   .katafygia-body ul{ padding-left:22px; margin:0 0 14px; }
@@ -1954,16 +1963,18 @@
   </div>
 </div>
 
-<div id="weatherModalOverlay" class="modal-overlay">
-  <div class="modal-box">
-    <h3 id="weatherModalTitle">🌤️ Πρόβλεψη Καιρού</h3>
-    <div class="weather-fallback">
-      Αν ο χάρτης δεν φορτώνει, <a id="weatherFallbackLink" href="https://www.windy.com/" target="_blank" rel="noopener">ανοίξτε το windy.com σε νέα καρτέλα ↗</a>
-    </div>
-    <iframe id="weatherIframe" src="" class="weather-iframe" loading="lazy"></iframe>
-    <div class="modal-actions">
-      <button type="button" class="btn-ghost" id="weatherModalClose">Κλείσιμο</button>
-    </div>
+<div id="weatherChoiceOverlay" class="weather-choice-overlay">
+  <div class="weather-choice-box">
+    <div class="weather-choice-title" id="weatherChoiceTitle">🌤️ Πρόβλεψη Καιρού</div>
+    <a id="weatherChoiceWindy" class="weather-choice-link" href="#" target="_blank" rel="noopener">
+      <span class="wc-name">🌬️ Windy</span>
+      <span class="wc-desc">Χάρτης ανέμου, βροχής, θερμοκρασίας</span>
+    </a>
+    <a id="weatherChoiceMF" class="weather-choice-link" href="https://www.mountain-forecast.com/" target="_blank" rel="noopener">
+      <span class="wc-name">🏔️ Mountain-Forecast.com</span>
+      <span class="wc-desc">Πρόβλεψη ανά υψόμετρο κορυφής (μόνο αγγλικά)</span>
+    </a>
+    <button type="button" class="btn-ghost weather-choice-cancel" id="weatherChoiceCancel">Άκυρο</button>
   </div>
 </div>
 
@@ -2473,14 +2484,14 @@ function resolveWeatherCoords_(text){
   }
   return null;
 }
-function openWeatherModal_(coords, label){
-  const c = coords || { lat: 39.0742, lon: 21.8243 }; // κέντρο Ελλάδας -- fallback, αναζήτηση μέσα στο widget
-  const zoom = coords ? 9 : 6;
-  const url = `https://embed.windy.com/embed2.html?lat=${c.lat}&lon=${c.lon}&detailLat=${c.lat}&detailLon=${c.lon}&width=650&height=450&zoom=${zoom}&level=surface&overlay=wind&product=ecmwf&menu=&message=true&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1`;
-  document.getElementById('weatherModalTitle').textContent = label ? `🌤️ Πρόβλεψη Καιρού — ${label}` : '🌤️ Πρόβλεψη Καιρού';
-  document.getElementById('weatherIframe').src = url;
-  document.getElementById('weatherFallbackLink').href = coords ? `https://www.windy.com/?${c.lat},${c.lon},${zoom}` : 'https://www.windy.com/';
-  document.getElementById('weatherModalOverlay').classList.add('show');
+function openWeatherChoice_(coords, label){
+  const windyUrl = coords ? `https://www.windy.com/?${coords.lat},${coords.lon},9` : 'https://www.windy.com/';
+  document.getElementById('weatherChoiceTitle').textContent = label ? `🌤️ Καιρός — ${label}` : '🌤️ Πρόβλεψη Καιρού';
+  document.getElementById('weatherChoiceWindy').href = windyUrl;
+  // Το Mountain-Forecast.com δεν έχει σύνδεσμο αναζήτησης με παράμετρο URL,
+  // οπότε πάντα ανοίγει την αρχική σελίδα του -- εκεί ο καθένας ψάχνει το
+  // βουνό που θέλει.
+  document.getElementById('weatherChoiceOverlay').classList.add('show');
 }
 function onWeather(id){
   const r = ROWS.find(row => row.ID === id);
@@ -2488,14 +2499,21 @@ function onWeather(id){
   const loc = (r['Τοποθεσία'] || '').trim();
   const title = (r['Σχόλια'] || '').trim();
   const coords = resolveWeatherCoords_(loc) || resolveWeatherCoords_(title);
-  openWeatherModal_(coords, loc || title);
+  openWeatherChoice_(coords, loc || title);
 }
 document.getElementById('tabWeather').addEventListener('click', () => {
-  openWeatherModal_(null, null);
+  openWeatherChoice_(null, null);
 });
-document.getElementById('weatherModalClose').addEventListener('click', () => {
-  document.getElementById('weatherModalOverlay').classList.remove('show');
-  document.getElementById('weatherIframe').src = '';
+document.getElementById('weatherChoiceCancel').addEventListener('click', () => {
+  document.getElementById('weatherChoiceOverlay').classList.remove('show');
+});
+document.getElementById('weatherChoiceOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'weatherChoiceOverlay') document.getElementById('weatherChoiceOverlay').classList.remove('show');
+});
+['weatherChoiceWindy', 'weatherChoiceMF'].forEach(id => {
+  document.getElementById(id).addEventListener('click', () => {
+    document.getElementById('weatherChoiceOverlay').classList.remove('show');
+  });
 });
 
 function render(){
