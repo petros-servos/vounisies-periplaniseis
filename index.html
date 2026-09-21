@@ -3784,7 +3784,11 @@ function goToNotif(id){
   }
   const card = document.getElementById('exp-' + id);
   if (card){
-    card.scrollIntoView({ behavior:'smooth', block:'center' });
+    // Κεντράρουμε τον ΤΙΤΛΟ της κάρτας, όχι όλη την κάρτα -- σε πολυήμερες
+    // ή κάρτες με πολλά σχόλια/ενδιαφερόμενους, το κεντράρισμα ολόκληρης
+    // της κάρτας μπορεί να προσγειώνει στη μέση του περιεχομένου αντί στον
+    // τίτλο, ειδικά σε κινητό.
+    (card.querySelector('.title') || card).scrollIntoView({ behavior:'smooth', block:'center' });
     card.classList.add('just-added');
     setTimeout(() => card.classList.remove('just-added'), 2300);
   }
@@ -3838,7 +3842,7 @@ function goToSSNotif(id){
   setTimeout(() => {
     const card = document.getElementById('exp-' + id);
     if (card){
-      card.scrollIntoView({ behavior:'smooth', block:'center' });
+      (card.querySelector('.title') || card).scrollIntoView({ behavior:'smooth', block:'center' });
       card.classList.add('just-added');
       setTimeout(() => card.classList.remove('just-added'), 2300);
     }
