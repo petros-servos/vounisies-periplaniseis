@@ -2895,6 +2895,17 @@ function dateBlockParts(dt, days){
   };
 }
 
+// Το Google Sheet μπορεί να έχει αποθηκεύσει το κόστος σαν ΑΡΙΘΜΟ (π.χ. αν
+// το Sheet το "αναγνώρισε" σαν νόμισμα και έχασε το €), όχι σαν κείμενο.
+// Εδώ το κανονικοποιούμε πάντα σε κείμενο με ένα και μοναδικό "€" μπροστά,
+// είτε είναι ήδη string με/χωρίς €, είτε γυμνός αριθμός.
+function formatCost_(raw){
+  if (raw === '' || raw === null || raw === undefined) return '';
+  const s = String(raw).trim();
+  if (s === '') return '';
+  return s.startsWith('€') ? s : ('€' + s);
+}
+
 function cardHtml(r, today){
   const dt = r['Ημερομηνία'] ? new Date(r['Ημερομηνία']) : null;
   if (dt) dt.setHours(0,0,0,0);
@@ -2921,8 +2932,11 @@ function cardHtml(r, today){
   const noDateClass = dt ? '' : 'no-date';
   const noDateBadge = dt ? '' : '<span class="tag no-date-tag">🎒 Πρόταση Summit Squad</span>';
   const commentCount = parseInt(r['ΑριθμόςΣχολίων'], 10) || 0;
-  const groupName = dt ? (r['Ομάδα/Σύλλογος'] || '') : '';
-  const cost = dt ? (r['Κόστος Εξόρμησης'] || '') : '';
+  // String(...) εδώ επίτηδες: αν το Google Sheet έχει μετατρέψει αυτόματα
+  // ένα κόστος σε αριθμό (π.χ. επειδή μοιάζει με νόμισμα), το .replace()
+  // παρακάτω θα έσκαγε πάνω σε πραγματικό αριθμό -- το String() το γλιτώνει.
+  const groupName = dt ? String(r['Ομάδα/Σύλλογος'] || '') : '';
+  const cost = dt ? formatCost_(r['Κόστος Εξόρμησης']) : '';
   const groupCostLine = (groupName || cost) ? `<div class="interested group-cost-line">${groupName ? `👥 ${escapeHtml(groupName)}` : ''}${groupName && cost ? ' · ' : ''}${cost ? `💵 ${escapeHtml(cost)}` : ''}</div>` : '';
 
   return `
@@ -3446,8 +3460,8 @@ function openEditModal(id){
   eDur.value = r['Διάρκεια'] || 'Ημερήσιο';
   document.getElementById('eStayIn').value = r['Διαμονή'] || '';
   document.getElementById('eComment').value = r['Σχόλια'] || '';
-  document.getElementById('eGroup').value = r['Ομάδα/Σύλλογος'] || '';
-  document.getElementById('eCost').value = (r['Κόστος Εξόρμησης'] || '').replace(/^€\s*/, '');
+  document.getElementById('eGroup').value = String(r['Ομάδα/Σύλλογος'] || '');
+  document.getElementById('eCost').value = formatCost_(r['Κόστος Εξόρμησης']).replace(/^€\s*/, '');
   eGroupCostWrap.style.display = hasNoDate ? 'none' : '';
 
   if (eDur.value === 'Πολυήμερο'){
