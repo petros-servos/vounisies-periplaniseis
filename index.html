@@ -604,7 +604,7 @@
     box-shadow: 0 8px 20px rgba(0,0,0,0.06);
   }
   .filters{ display:flex; flex-wrap:wrap; gap:8px; }
-  select, input[type=text], input[type=date], textarea{
+  select, input[type=text], input[type=date], input[type=password], textarea{
     background: var(--surface);
     border:1px solid var(--border);
     color: var(--text);
@@ -612,6 +612,11 @@
     border-radius:9px;
     font-family: Calibri, Carlito, sans-serif;
     font-size:15.8px;
+  }
+  #adminPasswordInput{
+    padding:16px 18px;
+    font-size:19px;
+    letter-spacing:1px;
   }
   select:focus, input:focus, textarea:focus{
     outline:2px solid var(--accent);
@@ -1034,13 +1039,19 @@
   .tag.stay{ background: var(--tag-stay-bg); }
   .tag.who{ background: var(--tag-who-bg); }
   .password-field-wrap{ position:relative; display:flex; align-items:center; }
-  .password-field-wrap input{ width:100%; padding-right:38px; }
+  .password-field-wrap input{ width:100%; padding-right:46px; }
   .password-toggle-btn{
-    position:absolute; right:6px; top:50%; transform:translateY(-50%);
-    background:none; border:none; cursor:pointer; font-size:16px; line-height:1;
-    padding:4px 6px; opacity:0.75; border-radius:6px;
+    position:absolute; right:8px; top:50%; transform:translateY(-50%);
+    background:none; border:none; cursor:pointer; font-size:19px; line-height:1;
+    padding:6px 8px; opacity:0.75; border-radius:6px;
   }
   .password-toggle-btn:hover{ opacity:1; background: var(--surface-2); }
+  .cost-field-wrap{ position:relative; display:flex; align-items:center; }
+  .cost-field-wrap input{ width:100%; padding-left:28px; }
+  .cost-symbol{
+    position:absolute; left:12px; top:50%; transform:translateY(-50%);
+    color: var(--text-dim); font-weight:700; pointer-events:none;
+  }
   .interested{ font-size:16.5px; color: var(--text); font-weight:500; }
   .interested.maybe-line{ margin-top:4px; }
   .interested.group-cost-line{ margin-top:4px; font-size:14.7px; color: var(--text-dim); font-weight:600; }
@@ -1714,7 +1725,10 @@
           </div>
           <div>
             <label for="fCost">Κόστος Εξόρμησης</label>
-            <input type="text" id="fCost" value="€" placeholder="€15">
+            <div class="cost-field-wrap">
+              <span class="cost-symbol">€</span>
+              <input type="text" id="fCost" placeholder="15">
+            </div>
           </div>
         </div>
         <div>
@@ -2078,7 +2092,10 @@
           </div>
           <div>
             <label for="eCost">Κόστος Εξόρμησης</label>
-            <input type="text" id="eCost" value="€" placeholder="€15">
+            <div class="cost-field-wrap">
+              <span class="cost-symbol">€</span>
+              <input type="text" id="eCost" placeholder="15">
+            </div>
           </div>
         </div>
         <div>
@@ -3430,7 +3447,7 @@ function openEditModal(id){
   document.getElementById('eStayIn').value = r['Διαμονή'] || '';
   document.getElementById('eComment').value = r['Σχόλια'] || '';
   document.getElementById('eGroup').value = r['Ομάδα/Σύλλογος'] || '';
-  document.getElementById('eCost').value = r['Κόστος Εξόρμησης'] || '€';
+  document.getElementById('eCost').value = (r['Κόστος Εξόρμησης'] || '').replace(/^€\s*/, '');
   eGroupCostWrap.style.display = hasNoDate ? 'none' : '';
 
   if (eDur.value === 'Πολυήμερο'){
@@ -3527,9 +3544,11 @@ fNoDate.addEventListener('change', () => {
   fGroupCostWrap.style.display = noDate ? 'none' : '';
 });
 
+// Το πεδίο κόστους δείχνει σταθερό "€" σαν prefix εκτός input -- ο χρήστης
+// γράφει μόνο το ποσό/κείμενο μετά. Εδώ το ενώνουμε πριν την αποστολή.
 function normalizeCost_(v){
-  const t = (v || '').trim();
-  return (t === '' || t === '€') ? '' : t;
+  const t = (v || '').trim().replace(/^€\s*/, '');
+  return t === '' ? '' : ('€' + t);
 }
 
 addForm.addEventListener('submit', async (e) => {
@@ -3560,7 +3579,6 @@ addForm.addEventListener('submit', async (e) => {
     fDateWrap.style.display = '';
     fDate.required = true;
     fGroupCostWrap.style.display = '';
-    document.getElementById('fCost').value = '€';
     addModalOverlay.classList.remove('show');
     await load();
   } else {
