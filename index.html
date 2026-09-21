@@ -2906,7 +2906,7 @@ function cardHtml(r, today){
   const commentCount = parseInt(r['ΑριθμόςΣχολίων'], 10) || 0;
   const groupName = dt ? (r['Ομάδα/Σύλλογος'] || '') : '';
   const cost = dt ? (r['Κόστος Εξόρμησης'] || '') : '';
-  const groupCostLine = (groupName || cost) ? `<div class="interested group-cost-line">${groupName ? `🏛️ ${escapeHtml(groupName)}` : ''}${groupName && cost ? ' · ' : ''}${cost ? `💶 ${escapeHtml(cost)}` : ''}</div>` : '';
+  const groupCostLine = (groupName || cost) ? `<div class="interested group-cost-line">${groupName ? `👥 ${escapeHtml(groupName)}` : ''}${groupName && cost ? ' · ' : ''}${cost ? `💵 ${escapeHtml(cost)}` : ''}</div>` : '';
 
   return `
     <div class="card ${isPast ? 'past' : ''} ${urgentClass} ${noDateClass}" id="exp-${r.ID}">
@@ -2925,8 +2925,8 @@ function cardHtml(r, today){
             ${who ? `<span class="tag who">πρόταση: ${escapeHtml(who)}</span>` : ''}
           </div>
           <div class="interested">${interested.length ? `🥾 <b>${interested.length}</b> θα έρθουν: ${escapeHtml(interested.join(', '))}` : '🥾 Θα το ζήσουμε παρέα;'}</div>
-          ${groupCostLine}
           ${maybe.length ? `<div class="interested maybe-line">💭 <b>${maybe.length}</b> το σκέφτονται: ${escapeHtml(maybe.join(', '))}</div>` : ''}
+          ${groupCostLine}
         </div>
         <div class="card-actions">
           <div class="rsvp-dropdown ${iAmIn ? 'is-in' : (iAmMaybe ? 'is-maybe' : '')}" data-rsvp="${r.ID}">
