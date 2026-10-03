@@ -2137,6 +2137,17 @@
         </div>
       </div>
 
+      <div class="hikecalc-trander-extra">
+        <h4>Δική σου μέση ταχύτητα <span style="font-weight:400; color:var(--text-dim);">(προαιρετικό)</span></h4>
+        <p class="hint" id="hcSpeedHint">Οι φόρμουλες υποθέτουν συγκεκριμένη ταχύτητα σε επίπεδο έδαφος. Αν ξέρεις ότι περπατάς πιο αργά ή πιο γρήγορα, βάλε εδώ τη δική σου μέση ταχύτητα και ο χρόνος θα κλιμακωθεί αναλογικά — το αποτέλεσμα τότε δεν θα είναι πλέον ο τυπικός υπολογισμός του μοντέλου, αλλά μια προσαρμογή με βάση τη δική σου ταχύτητα.</p>
+        <div class="form-grid">
+          <div>
+            <label for="hcUserSpeed">Μέση ταχύτητά σου σε επίπεδο έδαφος (km/h)</label>
+            <input type="number" id="hcUserSpeed" step="0.1" min="0.1" placeholder="π.χ. 4">
+          </div>
+        </div>
+      </div>
+
       <div class="hikecalc-trander-extra" id="hcStopsExtra">
         <h4>Στάσεις ξεκούρασης <span style="font-weight:400; color:var(--text-dim);">(προαιρετικό)</span></h4>
         <p class="hint">Οι κανόνες Naismith / Richin / Trander υπολογίζουν μόνο τον καθαρό χρόνο βάδισης, χωρίς στάσεις — γι' αυτό στην πράξη μια εξόρμηση κρατάει αρκετά περισσότερο. Αν θέλεις, πρόσθεσε χρόνο για στάσεις (φαγητό, ξεκούραση, φωτογραφίες, προσανατολισμός).</p>
@@ -3148,20 +3159,29 @@ weatherChoiceOverlay.querySelectorAll('.weather-choice-link').forEach(link => {
   const hcNaismithSlopeWrap = document.getElementById('hcNaismithSlopeWrap');
   const hcTranderExtra = document.getElementById('hcTranderExtra');
   const hcModelDesc = document.getElementById('hcModelDesc');
+  const hcSpeedHint = document.getElementById('hcSpeedHint');
 
   const MODEL_DESCRIPTIONS = {
     naismith: 'Ο κλασικός κανόνας του Naismith (1892): 5 km/h σε επίπεδο έδαφος, +1 ώρα ανά 600m ανάβασης, -1 ώρα ανά 600m κατάβασης.',
     richin: 'Ο κανόνας του Richin: 3,5 km/h σε επίπεδο έδαφος (με φορτίο ~17kg), +1 ώρα ανά 300m ανάβασης, -1 ώρα ανά 300m κατάβασης.',
     trander: 'Το μοντέλο Trander (1965): προσαρμόζει τον χρόνο του Naismith στο προσωπικό σου επίπεδο φυσικής κατάστασης και στις συνθήκες πεδίου.'
   };
+  const BASE_SPEEDS = { naismith: 5, richin: 3.5, trander: 5 };
+  const SPEED_HINTS = {
+    naismith: 'Ο κανόνας Naismith υποθέτει 5 km/h σε επίπεδο έδαφος. Αν ξέρεις ότι περπατάς πιο αργά ή πιο γρήγορα, βάλε εδώ τη δική σου μέση ταχύτητα και ο χρόνος θα κλιμακωθεί αναλογικά — το αποτέλεσμα τότε δεν θα είναι πλέον ο τυπικός υπολογισμός του μοντέλου, αλλά μια προσαρμογή με βάση τη δική σου ταχύτητα.',
+    richin: 'Ο κανόνας Richin υποθέτει 3,5 km/h σε επίπεδο έδαφος (με φορτίο ~17kg). Αν ξέρεις ότι περπατάς πιο αργά ή πιο γρήγορα, βάλε εδώ τη δική σου μέση ταχύτητα και ο χρόνος θα κλιμακωθεί αναλογικά — το αποτέλεσμα τότε δεν θα είναι πλέον ο τυπικός υπολογισμός του μοντέλου, αλλά μια προσαρμογή με βάση τη δική σου ταχύτητα.',
+    trander: 'Το μοντέλο Trander υποθέτει βάση 5 km/h (Naismith) πριν την προσαρμογή με το τεστ φυσικής κατάστασης. Αν συμπληρώσεις και εδώ τη δική σου ταχύτητα, θα κλιμακωθεί αναλογικά ΠΑΝΩ στο ήδη προσαρμοσμένο αποτέλεσμα του Trander — χρησιμοποίησέ το μόνο αν θεωρείς ότι ούτε το τεστ φυσικής κατάστασης αρκεί για να περιγράψει τον ρυθμό σου.'
+  };
 
   let hcCurrentModel = 'naismith';
+  hcSpeedHint.textContent = SPEED_HINTS[hcCurrentModel];
 
   document.querySelectorAll('.hikecalc-model-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       hcCurrentModel = btn.dataset.model;
       document.querySelectorAll('.hikecalc-model-btn').forEach(b => b.classList.toggle('active', b === btn));
       hcModelDesc.textContent = MODEL_DESCRIPTIONS[hcCurrentModel] || '';
+      hcSpeedHint.textContent = SPEED_HINTS[hcCurrentModel] || '';
       hcNaismithSlopeWrap.style.display = (hcCurrentModel === 'naismith') ? '' : 'none';
       hcTranderExtra.style.display = (hcCurrentModel === 'trander') ? '' : 'none';
       hikeCalcResult.classList.remove('show', 'is-danger');
@@ -3243,6 +3263,13 @@ weatherChoiceOverlay.querySelectorAll('.weather-choice-link').forEach(link => {
   function stopsSubtext(stopsMinPerHour){
     return stopsMinPerHour ? (' + στάσεις (' + stopsMinPerHour + "'/ώρα).") : ' (χωρίς στάσεις).';
   }
+  function speedRatio(userSpeed, baseSpeed){
+    return (userSpeed && userSpeed > 0) ? (baseSpeed / userSpeed) : 1;
+  }
+  function speedNote(userSpeed, baseSpeed, standardWalkH, adjustedWalkH){
+    if (!userSpeed || userSpeed <= 0) return '';
+    return ' ⚠️ Προσαρμοσμένο με τη δική σου ταχύτητα (' + userSpeed + ' km/h αντί του προκαθορισμένου ' + baseSpeed + ' km/h) — δεν είναι πλέον ο τυπικός υπολογισμός του μοντέλου. Τυπικός χρόνος μοντέλου: ' + hoursToHM(standardWalkH) + 'ω → προσαρμοσμένος: ' + hoursToHM(adjustedWalkH) + 'ω.';
+  }
 
   hikeCalcForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -3250,24 +3277,29 @@ weatherChoiceOverlay.querySelectorAll('.weather-choice-link').forEach(link => {
     const ascent = parseFloat(document.getElementById('hcAscent').value) || 0;
     const descent = parseFloat(document.getElementById('hcDescent').value) || 0;
     const stopsMinPerHour = parseInt(document.getElementById('hcStops').value, 10) || 0;
+    const userSpeed = parseFloat(document.getElementById('hcUserSpeed').value) || 0;
 
     hikeCalcResult.classList.remove('is-danger');
 
     if (hcCurrentModel === 'naismith'){
       const slopeAdj = document.getElementById('hcNaismithSlope').value;
-      const walkH = naismithHours(distance, ascent, descent, slopeAdj);
+      const standardWalkH = naismithHours(distance, ascent, descent, slopeAdj);
+      const ratio = speedRatio(userSpeed, BASE_SPEEDS.naismith);
+      const walkH = standardWalkH * ratio;
       const totalH = applyStops(walkH, stopsMinPerHour);
       hikeCalcResultBig.textContent = '⏱️ ' + hoursToHM(totalH) + ' ώρες';
-      hikeCalcResultSub.textContent = 'Κανόνας Naismith: ' + distance + ' km, +' + ascent + 'm / -' + descent + 'm. Καθαρός χρόνος βάδισης: ' + hoursToHM(walkH) + 'ω' + stopsSubtext(stopsMinPerHour);
+      hikeCalcResultSub.textContent = 'Κανόνας Naismith: ' + distance + ' km, +' + ascent + 'm / -' + descent + 'm. Καθαρός χρόνος βάδισης: ' + hoursToHM(walkH) + 'ω' + stopsSubtext(stopsMinPerHour) + speedNote(userSpeed, BASE_SPEEDS.naismith, standardWalkH, walkH);
       hikeCalcResult.classList.add('show');
       return;
     }
 
     if (hcCurrentModel === 'richin'){
-      const walkH = richinHours(distance, ascent, descent);
+      const standardWalkH = richinHours(distance, ascent, descent);
+      const ratio = speedRatio(userSpeed, BASE_SPEEDS.richin);
+      const walkH = standardWalkH * ratio;
       const totalH = applyStops(walkH, stopsMinPerHour);
       hikeCalcResultBig.textContent = '⏱️ ' + hoursToHM(totalH) + ' ώρες';
-      hikeCalcResultSub.textContent = 'Κανόνας Richin: ' + distance + ' km, +' + ascent + 'm / -' + descent + 'm (με φορτίο ~17kg). Καθαρός χρόνος βάδισης: ' + hoursToHM(walkH) + 'ω' + stopsSubtext(stopsMinPerHour);
+      hikeCalcResultSub.textContent = 'Κανόνας Richin: ' + distance + ' km, +' + ascent + 'm / -' + descent + 'm (με φορτίο ~17kg). Καθαρός χρόνος βάδισης: ' + hoursToHM(walkH) + 'ω' + stopsSubtext(stopsMinPerHour) + speedNote(userSpeed, BASE_SPEEDS.richin, standardWalkH, walkH);
       hikeCalcResult.classList.add('show');
       return;
     }
@@ -3306,11 +3338,13 @@ weatherChoiceOverlay.querySelectorAll('.weather-choice-link').forEach(link => {
       return;
     }
 
-    const walkH = lookup.minutes / 60;
+    const standardWalkH = lookup.minutes / 60;
+    const ratio = speedRatio(userSpeed, BASE_SPEEDS.trander);
+    const walkH = standardWalkH * ratio;
     const totalH = applyStops(walkH, stopsMinPerHour);
-    const extraH = walkH - baseH;
+    const extraH = standardWalkH - baseH;
     hikeCalcResultBig.textContent = '⏱️ ' + hoursToHM(totalH) + ' ώρες';
-    hikeCalcResultSub.textContent = 'Μοντέλο Trander, επίπεδο φυσικής κατάστασης ' + level + adjNote + '. Βάση Naismith: ' + hoursToHM(baseH) + 'ω, δηλαδή ' + hoursToHM(extraH) + ' ώρες παραπάνω. Καθαρός χρόνος βάδισης (με Trander): ' + hoursToHM(walkH) + 'ω' + stopsSubtext(stopsMinPerHour);
+    hikeCalcResultSub.textContent = 'Μοντέλο Trander, επίπεδο φυσικής κατάστασης ' + level + adjNote + '. Βάση Naismith: ' + hoursToHM(baseH) + 'ω, δηλαδή ' + hoursToHM(extraH) + ' ώρες παραπάνω. Καθαρός χρόνος βάδισης (με Trander): ' + hoursToHM(walkH) + 'ω' + stopsSubtext(stopsMinPerHour) + speedNote(userSpeed, BASE_SPEEDS.trander, standardWalkH, walkH);
     hikeCalcResult.classList.add('show');
   });
 })();
