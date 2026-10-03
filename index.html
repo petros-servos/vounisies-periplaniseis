@@ -2100,7 +2100,7 @@
       <span class="wc-name">🏔️ Mountain-Forecast.com</span>
       <span class="wc-desc">Πρόβλεψη ανά υψόμετρο κορυφής (μόνο αγγλικά)</span>
     </a>
-    <button type="button" class="btn-ghost weather-choice-cancel" id="weatherChoiceCancel">Άκυρο</button>
+    <button type="button" class="btn-ghost weather-choice-cancel" id="weatherChoiceCancel">Κλείσιμο</button>
   </div>
 </div>
 
@@ -2134,6 +2134,23 @@
             <option value="gentle">Ομαλή πλαγιά (-10'/300m)</option>
             <option value="steep">Απότομη πλαγιά (+10'/300m)</option>
           </select>
+        </div>
+      </div>
+
+      <div class="hikecalc-trander-extra" id="hcStopsExtra">
+        <h4>Στάσεις ξεκούρασης</h4>
+        <p class="hint">Οι κανόνες Naismith / Richin / Trander υπολογίζουν μόνο τον καθαρό χρόνο βάδισης, χωρίς στάσεις — γι' αυτό στην πράξη μια εξόρμηση κρατάει αρκετά περισσότερο. Πρόσθεσε έναν ρεαλιστικό συντελεστή στάσεων (φαγητό, ξεκούραση, φωτογραφίες, προσανατολισμός).</p>
+        <div class="form-grid">
+          <div>
+            <label for="hcStops">Στάσεις ξεκούρασης (%)</label>
+            <select id="hcStops">
+              <option value="0">Καμία (μόνο καθαρός χρόνος βάδισης)</option>
+              <option value="10">Ελαφριές στάσεις (+10%)</option>
+              <option value="20" selected>Συνηθισμένες στάσεις (+20%)</option>
+              <option value="30">Συχνές στάσεις / μεγάλη ομάδα (+30%)</option>
+              <option value="40">Πολλές στάσεις / αρχάριοι, παιδιά (+40%)</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -3220,27 +3237,36 @@ weatherChoiceOverlay.querySelectorAll('.weather-choice-link').forEach(link => {
     return { outOfTable: true };
   }
 
+  function stopsNote(walkH, stopsPct){
+    if (!stopsPct) return '';
+    const totalH = walkH * (1 + stopsPct / 100);
+    return ' Με στάσεις ξεκούρασης (+' + stopsPct + '%): ⏱️ ' + hoursToHM(totalH) + ' ώρες συνολικά.';
+  }
+
   hikeCalcForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const distance = parseFloat(document.getElementById('hcDistance').value) || 0;
     const ascent = parseFloat(document.getElementById('hcAscent').value) || 0;
     const descent = parseFloat(document.getElementById('hcDescent').value) || 0;
+    const stopsPct = parseInt(document.getElementById('hcStops').value, 10) || 0;
 
     hikeCalcResult.classList.remove('is-danger');
 
     if (hcCurrentModel === 'naismith'){
       const slopeAdj = document.getElementById('hcNaismithSlope').value;
-      const h = naismithHours(distance, ascent, descent, slopeAdj);
-      hikeCalcResultBig.textContent = '⏱️ ' + hoursToHM(h) + ' ώρες';
-      hikeCalcResultSub.textContent = 'Κανόνας Naismith: ' + distance + ' km, +' + ascent + 'm / -' + descent + 'm.';
+      const walkH = naismithHours(distance, ascent, descent, slopeAdj);
+      const totalH = walkH * (1 + stopsPct / 100);
+      hikeCalcResultBig.textContent = '⏱️ ' + hoursToHM(totalH) + ' ώρες';
+      hikeCalcResultSub.textContent = 'Κανόνας Naismith: ' + distance + ' km, +' + ascent + 'm / -' + descent + 'm. Καθαρός χρόνος βάδισης: ' + hoursToHM(walkH) + 'ω' + (stopsPct ? ' + ' + stopsPct + '% στάσεις.' : ' (χωρίς στάσεις).');
       hikeCalcResult.classList.add('show');
       return;
     }
 
     if (hcCurrentModel === 'richin'){
-      const h = richinHours(distance, ascent, descent);
-      hikeCalcResultBig.textContent = '⏱️ ' + hoursToHM(h) + ' ώρες';
-      hikeCalcResultSub.textContent = 'Κανόνας Richin: ' + distance + ' km, +' + ascent + 'm / -' + descent + 'm (με φορτίο ~17kg).';
+      const walkH = richinHours(distance, ascent, descent);
+      const totalH = walkH * (1 + stopsPct / 100);
+      hikeCalcResultBig.textContent = '⏱️ ' + hoursToHM(totalH) + ' ώρες';
+      hikeCalcResultSub.textContent = 'Κανόνας Richin: ' + distance + ' km, +' + ascent + 'm / -' + descent + 'm (με φορτίο ~17kg). Καθαρός χρόνος βάδισης: ' + hoursToHM(walkH) + 'ω' + (stopsPct ? ' + ' + stopsPct + '% στάσεις.' : ' (χωρίς στάσεις).');
       hikeCalcResult.classList.add('show');
       return;
     }
@@ -3279,10 +3305,11 @@ weatherChoiceOverlay.querySelectorAll('.weather-choice-link').forEach(link => {
       return;
     }
 
-    const totalH = lookup.minutes / 60;
-    const extraH = totalH - baseH;
+    const walkH = lookup.minutes / 60;
+    const totalH = walkH * (1 + stopsPct / 100);
+    const extraH = walkH - baseH;
     hikeCalcResultBig.textContent = '⏱️ ' + hoursToHM(totalH) + ' ώρες';
-    hikeCalcResultSub.textContent = 'Μοντέλο Trander, επίπεδο φυσικής κατάστασης ' + level + adjNote + '. Βάση Naismith: ' + hoursToHM(baseH) + 'ω, δηλαδή ' + hoursToHM(extraH) + ' ώρες παραπάνω.';
+    hikeCalcResultSub.textContent = 'Μοντέλο Trander, επίπεδο φυσικής κατάστασης ' + level + adjNote + '. Βάση Naismith: ' + hoursToHM(baseH) + 'ω, δηλαδή ' + hoursToHM(extraH) + ' ώρες παραπάνω. Καθαρός χρόνος βάδισης (με Trander): ' + hoursToHM(walkH) + 'ω' + (stopsPct ? ' + ' + stopsPct + '% στάσεις.' : ' (χωρίς στάσεις).');
     hikeCalcResult.classList.add('show');
   });
 })();
