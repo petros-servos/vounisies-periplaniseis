@@ -3117,9 +3117,6 @@ document.getElementById('tabWeather').addEventListener('click', () => {
 document.getElementById('weatherChoiceCancel').addEventListener('click', () => {
   weatherChoiceOverlay.classList.remove('show');
 });
-weatherChoiceOverlay.addEventListener('click', (e) => {
-  if (e.target === weatherChoiceOverlay) weatherChoiceOverlay.classList.remove('show');
-});
 weatherChoiceOverlay.querySelectorAll('.weather-choice-link').forEach(link => {
   link.addEventListener('click', () => weatherChoiceOverlay.classList.remove('show'));
 });
@@ -3160,10 +3157,6 @@ weatherChoiceOverlay.querySelectorAll('.weather-choice-link').forEach(link => {
   document.getElementById('hikeCalcClose').addEventListener('click', () => {
     hikeCalcOverlay.classList.remove('show');
   });
-  hikeCalcOverlay.addEventListener('click', (e) => {
-    if (e.target === hikeCalcOverlay) hikeCalcOverlay.classList.remove('show');
-  });
-
   function hoursToHM(h){
     if (!isFinite(h)) return '—';
     const sign = h < 0 ? '-' : '';
