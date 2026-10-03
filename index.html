@@ -1611,6 +1611,7 @@
     display:flex; align-items:center; justify-content:center;
   }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
 <div id="welcomeOverlay">
@@ -2290,9 +2291,59 @@
 </footer>
 
 <script>
-/* ==== ΡΥΘΜΙΣΗ: Επικολλήστε εδώ το URL του Apps Script deployment σας (.../exec) ==== */
-const API_URL = "https://script.google.com/macros/s/AKfycbwFP8oAkxwUEc40IwYeHu8V0vON1L4KUxGo94vxkLjlswwoFLVk0b6b5lvp7mdTXSne/exec";
-/* ==================================================================================== */
+/* ==== ΡΥΘΜΙΣΗ: Supabase project (βλ. Project Settings → Data API) ==== */
+const SUPABASE_URL = "https://wluidespywylwloinshr.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsdWlkZXNweXd5bHdsb2luc2hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEwMTEyOTIsImV4cCI6MjEwNjU4NzI5Mn0.m_BsZ3gje586s2iJ9IXRGUGvAVIuRlPzc6BZ4TnYVIQ";
+const ADMIN_CHECK_URL = SUPABASE_URL + "/functions/v1/admin-check";
+const API_URL = SUPABASE_URL; // διατηρείται ως flag "είμαστε συνδεδεμένοι" για παλιούς ελέγχους πιο κάτω
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+/* ====================================================================== */
+
+const KNOWN_MEMBERS_ = ['Πέτρος', 'Κυριάκος', 'Ελένη', 'Άρτεμις - Ντιάνα', 'Σοφία', 'Εύη'];
+const DURATION_DAYS_MAP_ = { 'Ημερήσιο': 1, 'Διήμερο': 2, 'Τριήμερο': 3 };
+
+function resolveDaysForSave_(data){
+  const n = parseInt(data.days, 10);
+  if (n && n > 0) return n;
+  const dur = (data.duration || '').toString().trim();
+  return DURATION_DAYS_MAP_[dur] || 1;
+}
+
+// ---- Μετατροπή γραμμών Supabase (αγγλικές στήλες) στη μορφή με τα παλιά
+// ελληνικά κλειδιά που περιμένει όλος ο υπόλοιπος κώδικας της σελίδας ----
+function mapExpeditionRow_(row, commentCount){
+  return {
+    ID: row.id,
+    'Πρόταση / Link Πεζοπορίας': row.link || '',
+    'Ημερομηνία': row.date || '',
+    'Διάρκεια': row.duration || '',
+    'Ημέρες': row.days || 1,
+    'Διαμονή': row.stay || '',
+    'Σχόλια': row.title || '',
+    'Όνομα': row.proposer_name || '',
+    'Ομάδα/Σύλλογος': row.group_name || '',
+    'Κόστος Εξόρμησης': row.cost || '',
+    'Ενδιαφερόμενοι': (row.interested || []).join(', '),
+    'Σκέφτονται': (row.maybe || []).join(', '),
+    'Χρόνος Ειδοποίησης': row.notif_time || '',
+    'ΑριθμόςΣχολίων': commentCount || 0,
+  };
+}
+function mapCommentRow_(row){
+  return {
+    ID: row.id,
+    'ID Εξόρμησης': row.expedition_id,
+    'Όνομα': row.name,
+    'Κείμενο': row.text,
+    'Χρόνος': row.created_at,
+    'ΑπάντησηΣε': row.reply_to_id || '',
+    'ΑπάντησηΌνομα': row.reply_to_name || '',
+    'ΑπάντησηΚείμενο': row.reply_to_text || '',
+  };
+}
+function mapVisitRow_(row){
+  return { ID: row.id, 'Όνομα': row.name, 'Χρόνος': row.created_at, 'Συσκευή': row.device };
+}
 
 const MONTHS_EL = ['Ιαν','Φεβ','Μάρ','Απρ','Μάι','Ιούν','Ιούλ','Αύγ','Σεπ','Οκτ','Νοέ','Δεκ'];
 
@@ -2355,25 +2406,441 @@ function showStatus(msg){
 }
 function clearStatus(){ statusBanner.classList.remove('show'); }
 
-function apiGet(){
-  return fetch(API_URL + '?action=list').then(r => r.json());
+async function apiGet(){
+  const { data: exps, error } = await sb.from('expeditions').select('*').order('created_at', { ascending: true });
+  if (error) return { error: error.message };
+  const { data: comments } = await sb.from('comments').select('id, expedition_id');
+  const counts = {};
+  (comments || []).forEach(c => { counts[c.expedition_id] = (counts[c.expedition_id] || 0) + 1; });
+  return exps.map(r => mapExpeditionRow_(r, counts[r.id]));
 }
-function apiGetComments(expeditionId){
-  return fetch(API_URL + '?action=listComments&expeditionId=' + encodeURIComponent(expeditionId)).then(r => r.json());
+async function apiGetComments(expeditionId){
+  const { data, error } = await sb.from('comments').select('*').eq('expedition_id', expeditionId).order('created_at', { ascending: true });
+  if (error) return [];
+  return data.map(mapCommentRow_);
 }
-function apiGetRecentComments(){
-  return fetch(API_URL + '?action=recentComments').then(r => r.json());
+async function apiGetRecentComments(){
+  const { data, error } = await sb.from('comments').select('*').order('created_at', { ascending: false }).limit(40);
+  if (error) return [];
+  const { data: exps } = await sb.from('expeditions').select('id, title');
+  const titleMap = {};
+  (exps || []).forEach(e => { titleMap[e.id] = e.title || 'Εξόρμηση'; });
+  return data.map(c => ({
+    id: c.id,
+    expeditionId: c.expedition_id,
+    expeditionTitle: titleMap[c.expedition_id] || 'Εξόρμηση',
+    name: c.name,
+    text: c.text,
+    ts: c.created_at,
+  }));
 }
-function apiGetNotifState(name){
-  return fetch(API_URL + '?action=notifState&name=' + encodeURIComponent(name)).then(r => r.json());
+async function apiGetNotifState(name){
+  const out = { notif: { read: [], dismissed: [] }, ss: { read: [], dismissed: [] }, comment: { read: [], dismissed: [] } };
+  const cleanName = (name || '').toString().trim();
+  if (!cleanName) return out;
+  const { data } = await sb.from('notif_state').select('*').eq('name', cleanName);
+  (data || []).forEach(row => {
+    if (out[row.type]) out[row.type] = { read: row.read_ids || [], dismissed: row.dismissed_ids || [] };
+  });
+  return out;
 }
-function apiPost(payload){
-  // text/plain αποφεύγει το CORS preflight στο Apps Script
-  return fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(payload)
-  }).then(r => r.json());
+
+async function checkAdminPassword_(pw){
+  if (!pw) return false;
+  try {
+    const res = await fetch(ADMIN_CHECK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'apikey': SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ password: pw }),
+    }).then(r => r.json());
+    return !!res.ok;
+  } catch (e) { return false; }
+}
+
+async function addExpedition_(data){
+  const row = {
+    link: data.link || '',
+    date: data.date || null,
+    duration: data.duration || '',
+    days: resolveDaysForSave_(data),
+    stay: data.stay || '',
+    title: data.comment || '',
+    proposer_name: data.name || '',
+    group_name: data.group || '',
+    cost: data.cost || '',
+    interested: [],
+    maybe: [],
+    notif_time: new Date().toISOString(),
+  };
+  const { error } = await sb.from('expeditions').insert(row);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+async function updateExpedition_(data){
+  const { data: existing, error: err0 } = await sb.from('expeditions').select('date').eq('id', data.id).single();
+  if (err0) return { ok: false, error: 'not found' };
+  const hadDate = !!existing.date;
+  const hasDateNow = !!(data.date || '');
+  const row = {
+    link: data.link || '',
+    date: data.date || null,
+    duration: data.duration || '',
+    days: resolveDaysForSave_(data),
+    stay: data.stay || '',
+    title: data.comment || '',
+    proposer_name: data.name || '',
+    group_name: data.group || '',
+    cost: data.cost || '',
+  };
+  // Η χρονοσήμανση ειδοποίησης ανανεώνεται ΜΟΝΟ όταν αλλάζει η κατηγορία
+  // (χωρίς↔με ημερομηνία), όπως και πριν.
+  if (hadDate !== hasDateNow) row.notif_time = new Date().toISOString();
+  const { error } = await sb.from('expeditions').update(row).eq('id', data.id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+async function deleteExpedition_(id){
+  const { error } = await sb.from('expeditions').delete().eq('id', id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+async function toggleInterest_(id, name){
+  const { data: row, error } = await sb.from('expeditions').select('interested, maybe').eq('id', id).single();
+  if (error) return { ok: false, error: 'not found' };
+  let list = row.interested || [];
+  let nowInterested;
+  if (list.includes(name)) { list = list.filter(n => n !== name); nowInterested = false; }
+  else { list = [...list, name]; nowInterested = true; }
+  const update = { interested: list };
+  if (nowInterested) {
+    const maybeList = row.maybe || [];
+    if (maybeList.includes(name)) update.maybe = maybeList.filter(n => n !== name);
+  }
+  const { error: err2 } = await sb.from('expeditions').update(update).eq('id', id);
+  if (err2) return { ok: false, error: err2.message };
+  return { ok: true, list };
+}
+
+async function toggleMaybe_(id, name){
+  const { data: row, error } = await sb.from('expeditions').select('interested, maybe').eq('id', id).single();
+  if (error) return { ok: false, error: 'not found' };
+  if ((row.interested || []).includes(name)) return { ok: false, error: 'already_interested' };
+  let list = row.maybe || [];
+  list = list.includes(name) ? list.filter(n => n !== name) : [...list, name];
+  const { error: err2 } = await sb.from('expeditions').update({ maybe: list }).eq('id', id);
+  if (err2) return { ok: false, error: err2.message };
+  return { ok: true, list };
+}
+
+async function addCommentRow_(data){
+  const expeditionId = data.expeditionId || '';
+  const name = (data.name || '').toString().trim();
+  const text = (data.text || '').toString().trim();
+  if (!expeditionId || !name || !text) return { ok: false, error: 'missing fields' };
+  const row = { expedition_id: expeditionId, name, text };
+  const replyToId = (data.replyToId || '').toString().trim();
+  if (replyToId) {
+    row.reply_to_id = replyToId;
+    row.reply_to_name = (data.replyToName || '').toString().trim();
+    row.reply_to_text = (data.replyToText || '').toString().trim();
+  }
+  const { error } = await sb.from('comments').insert(row);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+async function updateCommentRow_(data){
+  const id = data.id || '';
+  const name = (data.name || '').toString().trim();
+  const text = (data.text || '').toString().trim();
+  if (!id || !name || !text) return { ok: false, error: 'missing fields' };
+  const { data: existing, error } = await sb.from('comments').select('name').eq('id', id).single();
+  if (error) return { ok: false, error: 'not found' };
+  if (existing.name !== name) return { ok: false, error: 'unauthorized' };
+  const { error: err2 } = await sb.from('comments').update({ text }).eq('id', id);
+  if (err2) return { ok: false, error: err2.message };
+  return { ok: true };
+}
+
+async function deleteCommentRow_(data){
+  const id = data.id || '';
+  const name = (data.name || '').toString().trim();
+  const isAdminReq = await checkAdminPassword_(data.adminPassword || '');
+  if (!id || (!name && !isAdminReq)) return { ok: false, error: 'missing fields' };
+  const { data: existing, error } = await sb.from('comments').select('name').eq('id', id).single();
+  if (error) return { ok: false, error: 'not found' };
+  if (existing.name !== name && !isAdminReq) return { ok: false, error: 'unauthorized' };
+  const { error: err2 } = await sb.from('comments').delete().eq('id', id);
+  if (err2) return { ok: false, error: err2.message };
+  return { ok: true };
+}
+
+async function notifMarkRow_(data){
+  const name = (data.name || '').toString().trim();
+  const type = (data.type || '').toString().trim();
+  const kind = (data.kind || '').toString().trim();
+  const ids = Array.isArray(data.ids)
+    ? data.ids.map(x => (x || '').toString()).filter(Boolean)
+    : (data.id ? [data.id.toString()] : []);
+  if (!name || ['notif', 'ss', 'comment'].indexOf(type) === -1 || ['read', 'dismiss'].indexOf(kind) === -1 || !ids.length) {
+    return { ok: false, error: 'missing/invalid fields' };
+  }
+  const { data: existing } = await sb.from('notif_state').select('*').eq('name', name).eq('type', type).maybeSingle();
+  let readIds = existing ? (existing.read_ids || []) : [];
+  let dismissedIds = existing ? (existing.dismissed_ids || []) : [];
+  const addIds_ = (arr) => {
+    const out = arr.slice();
+    ids.forEach(id => { if (out.indexOf(id) === -1) out.push(id); });
+    return out.length > 300 ? out.slice(out.length - 300) : out;
+  };
+  if (kind === 'read') readIds = addIds_(readIds);
+  if (kind === 'dismiss') { dismissedIds = addIds_(dismissedIds); readIds = addIds_(readIds); }
+  const { error } = await sb.from('notif_state').upsert({
+    name, type, read_ids: readIds, dismissed_ids: dismissedIds, updated_at: new Date().toISOString(),
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+async function logVisitRow_(data){
+  const name = (data.name || '').toString().trim();
+  if (!name) return { ok: false, error: 'missing name' };
+  const device = (data.device || '').toString().trim() || 'Άγνωστο';
+  const { error } = await sb.from('visits').insert({ name, device });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+async function apiPost(payload){
+  try {
+    switch (payload.action) {
+      case 'add': return await addExpedition_(payload);
+      case 'update': return await updateExpedition_(payload);
+      case 'delete': return await deleteExpedition_(payload.id);
+      case 'interest': return await toggleInterest_(payload.id, payload.name);
+      case 'maybe': return await toggleMaybe_(payload.id, payload.name);
+      case 'addComment': return await addCommentRow_(payload);
+      case 'updateComment': return await updateCommentRow_(payload);
+      case 'deleteComment': return await deleteCommentRow_(payload);
+      case 'notifMark': return await notifMarkRow_(payload);
+      case 'logVisit': return await logVisitRow_(payload);
+      default: return { ok: false, error: 'unknown action' };
+    }
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
+}
+
+// ---- Στατιστικά διαχειριστή -- client-side υπολογισμός, ίδιος αλγόριθμος
+// με το παλιό getAdminStats_ του Apps Script, πάνω σε δεδομένα Supabase ----
+function formatYMD_(d){
+  const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+const isSSRowStats_ = (r) => !r['Ημερομηνία'];
+
+async function computeAdminStats_(){
+  const { data: expRaw } = await sb.from('expeditions').select('*');
+  const { data: commentsRaw } = await sb.from('comments').select('*');
+  const { data: visitsRaw } = await sb.from('visits').select('*');
+  const { data: notifRaw } = await sb.from('notif_state').select('*');
+
+  const commentCountsPre = {};
+  (commentsRaw || []).forEach(c => { commentCountsPre[c.expedition_id] = (commentCountsPre[c.expedition_id] || 0) + 1; });
+  const rows = (expRaw || []).map(r => mapExpeditionRow_(r, commentCountsPre[r.id]));
+  const comments = (commentsRaw || []).map(mapCommentRow_);
+  const visits = (visitsRaw || []).map(mapVisitRow_);
+
+  const titleMap = {};
+  rows.forEach(r => { titleMap[r.ID] = r['Σχόλια'] || 'Εξόρμηση'; });
+
+  const people = {};
+  const ensurePerson = (name) => {
+    if (!people[name]) {
+      people[name] = {
+        name: name, comments: 0, lastCommentTs: null, interested: 0, maybe: 0, proposed: 0,
+        visits: 0, lastVisitTs: null, firstVisitTs: null, devices: {},
+      };
+    }
+    return people[name];
+  };
+
+  comments.forEach(c => {
+    const name = (c['Όνομα'] || '').toString().trim();
+    if (!name) return;
+    const p = ensurePerson(name);
+    p.comments += 1;
+    if (!p.lastCommentTs || new Date(c['Χρόνος']) > new Date(p.lastCommentTs)) p.lastCommentTs = c['Χρόνος'];
+  });
+
+  rows.forEach(r => {
+    const proposer = (r['Όνομα'] || '').toString().trim();
+    if (proposer) ensurePerson(proposer).proposed += 1;
+    (r['Ενδιαφερόμενοι'] || '').split(',').map(s => s.trim()).filter(Boolean).forEach(n => { ensurePerson(n).interested += 1; });
+    (r['Σκέφτονται'] || '').split(',').map(s => s.trim()).filter(Boolean).forEach(n => { ensurePerson(n).maybe += 1; });
+  });
+
+  const deviceCounts = {};
+  const visitsByDay = {};
+  const weekdayCounts = [0, 0, 0, 0, 0, 0, 0];
+  const personDates = {};
+  const today0 = new Date(); today0.setHours(0, 0, 0, 0);
+  const thirtyDaysAgo = new Date(today0); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+  const sevenDaysAgo = new Date(today0); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+
+  visits.forEach(v => {
+    const name = (v['Όνομα'] || '').toString().trim();
+    const vDate = new Date(v['Χρόνος']);
+    const device = (v['Συσκευή'] || 'Άγνωστο').toString();
+    if (name) {
+      const p = ensurePerson(name);
+      p.visits += 1;
+      if (!p.lastVisitTs || new Date(v['Χρόνος']) > new Date(p.lastVisitTs)) p.lastVisitTs = v['Χρόνος'];
+      if (!p.firstVisitTs || new Date(v['Χρόνος']) < new Date(p.firstVisitTs)) p.firstVisitTs = v['Χρόνος'];
+      p.devices[device] = (p.devices[device] || 0) + 1;
+      if (!isNaN(vDate)) {
+        if (!personDates[name]) personDates[name] = new Set();
+        personDates[name].add(formatYMD_(vDate));
+      }
+    }
+    deviceCounts[device] = (deviceCounts[device] || 0) + 1;
+    if (!isNaN(vDate)) {
+      weekdayCounts[vDate.getDay()] += 1;
+      if (vDate >= thirtyDaysAgo) {
+        const key = formatYMD_(vDate);
+        visitsByDay[key] = (visitsByDay[key] || 0) + 1;
+      }
+    }
+  });
+
+  const longestStreak_ = (dateStrs) => {
+    if (!dateStrs || !dateStrs.length) return 0;
+    const sorted = [...dateStrs].sort();
+    let longest = 1, current = 1;
+    for (let i = 1; i < sorted.length; i++) {
+      const diffDays = Math.round((new Date(sorted[i]) - new Date(sorted[i - 1])) / 86400000);
+      if (diffDays === 1) { current += 1; } else if (diffDays !== 0) { current = 1; }
+      longest = Math.max(longest, current);
+    }
+    return longest;
+  };
+  Object.keys(people).forEach(name => { people[name].longestStreak = longestStreak_(personDates[name] ? [...personDates[name]] : []); });
+
+  const newArrivals7d = Object.values(people).filter(p => {
+    if (!p.firstVisitTs) return false;
+    const d = new Date(p.firstVisitTs);
+    return !isNaN(d) && d >= sevenDaysAgo;
+  }).length;
+
+  const visitsPerDay = [];
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(thirtyDaysAgo); d.setDate(d.getDate() + i);
+    const key = formatYMD_(d);
+    visitsPerDay.push({ date: key, count: visitsByDay[key] || 0 });
+  }
+
+  const inactiveMembers = KNOWN_MEMBERS_.filter(name => {
+    const p = people[name];
+    if (!p) return true;
+    return p.comments === 0 && p.interested === 0 && p.maybe === 0 && p.proposed === 0 && p.visits === 0;
+  });
+  const rosterSize = KNOWN_MEMBERS_.length;
+  const rosterActiveCount = rosterSize - inactiveMembers.length;
+
+  const peopleList = Object.values(people).sort((a, b) => {
+    const scoreA = a.comments + a.interested + a.maybe + a.proposed + a.visits;
+    const scoreB = b.comments + b.interested + b.maybe + b.proposed + b.visits;
+    return scoreB - scoreA;
+  });
+
+  const commentCounts = commentCountsPre;
+  const expeditionStats = rows.map(r => ({
+    id: r.ID,
+    title: r['Σχόλια'] || 'Εξόρμηση',
+    interested: (r['Ενδιαφερόμενοι'] || '').split(',').map(s => s.trim()).filter(Boolean).length,
+    maybe: (r['Σκέφτονται'] || '').split(',').map(s => s.trim()).filter(Boolean).length,
+    comments: commentCounts[r.ID] || 0,
+    hasDate: !!r['Ημερομηνία'],
+  })).sort((a, b) => (b.interested + b.comments) - (a.interested + a.comments));
+
+  const zeroEngagementExpeditions = expeditionStats.filter(ex => ex.interested === 0 && ex.maybe === 0 && ex.comments === 0);
+
+  const durationCounts = {};
+  const stayCounts = {};
+  const MONTH_NAMES_EL_ = ['Ιανουάριος', 'Φεβρουάριος', 'Μάρτιος', 'Απρίλιος', 'Μάιος', 'Ιούνιος', 'Ιούλιος', 'Αύγουστος', 'Σεπτέμβριος', 'Οκτώβριος', 'Νοέμβριος', 'Δεκέμβριος'];
+  const monthCounts = MONTH_NAMES_EL_.map(name => ({ month: name, count: 0 }));
+  let pastCount = 0, upcomingCount = 0, noDateCount = 0;
+  const todayForCompare = new Date(); todayForCompare.setHours(0, 0, 0, 0);
+
+  rows.forEach(r => {
+    const dur = (r['Διάρκεια'] || 'Άγνωστο').toString();
+    durationCounts[dur] = (durationCounts[dur] || 0) + 1;
+    const stay = (r['Διαμονή'] || '(χωρίς διαμονή)').toString();
+    stayCounts[stay] = (stayCounts[stay] || 0) + 1;
+    if (!r['Ημερομηνία']) {
+      noDateCount += 1;
+    } else {
+      const d = new Date(r['Ημερομηνία']);
+      if (!isNaN(d)) {
+        if (d < todayForCompare) pastCount += 1; else upcomingCount += 1;
+        monthCounts[d.getMonth()].count += 1;
+      }
+    }
+  });
+
+  const totalInterested = expeditionStats.reduce((sum, ex) => sum + ex.interested, 0);
+  const avgCommentsPerExpedition = rows.length ? (comments.length / rows.length) : 0;
+  const avgInterestedPerExpedition = rows.length ? (totalInterested / rows.length) : 0;
+
+  const recentActivity = [...comments]
+    .sort((a, b) => new Date(b['Χρόνος']) - new Date(a['Χρόνος']))
+    .slice(0, 25)
+    .map(c => ({ name: c['Όνομα'], text: c['Κείμενο'], ts: c['Χρόνος'], expeditionTitle: titleMap[c['ID Εξόρμησης']] || 'Εξόρμηση' }));
+
+  const readUnion = { notif: new Set(), ss: new Set(), comment: new Set() };
+  (notifRaw || []).forEach(row => { if (readUnion[row.type]) (row.read_ids || []).forEach(id => readUnion[row.type].add(id)); });
+  const notifPoolIds = rows.filter(r => !isSSRowStats_(r) && r['Χρόνος Ειδοποίησης']).map(r => r.ID);
+  const ssPoolIds = rows.filter(r => isSSRowStats_(r) && r['Χρόνος Ειδοποίησης']).map(r => r.ID);
+  const commentPoolIds = comments.map(c => c['ID']).filter(Boolean);
+  const readRateOf_ = (poolIds, readSet) => ({ read: poolIds.filter(id => readSet.has(id)).length, total: poolIds.length });
+  const notifReadStats = {
+    notif: readRateOf_(notifPoolIds, readUnion.notif),
+    ss: readRateOf_(ssPoolIds, readUnion.ss),
+    comment: readRateOf_(commentPoolIds, readUnion.comment),
+  };
+
+  return {
+    totalExpeditions: rows.length,
+    totalComments: comments.length,
+    totalVisits: visits.length,
+    people: peopleList,
+    expeditions: expeditionStats,
+    recentActivity: recentActivity,
+    inactiveMembers: inactiveMembers,
+    rosterSize: rosterSize,
+    rosterActiveCount: rosterActiveCount,
+    newArrivals7d: newArrivals7d,
+    zeroEngagementExpeditions: zeroEngagementExpeditions,
+    deviceCounts: deviceCounts,
+    visitsPerDay: visitsPerDay,
+    weekdayCounts: weekdayCounts,
+    monthCounts: monthCounts,
+    durationCounts: durationCounts,
+    stayCounts: stayCounts,
+    pastCount: pastCount,
+    upcomingCount: upcomingCount,
+    noDateCount: noDateCount,
+    avgCommentsPerExpedition: avgCommentsPerExpedition,
+    avgInterestedPerExpedition: avgInterestedPerExpedition,
+    notifReadStats: notifReadStats,
+  };
 }
 
 function skeletonHtml(){
@@ -2396,7 +2863,7 @@ function skeletonHtml(){
 async function load(){
   if (!API_URL || API_URL.indexOf('PASTE_YOUR') === 0){
     listArea.innerHTML = '';
-    showStatus('Το dashboard δεν έχει συνδεθεί ακόμα με το Google Sheet. Ανοίξτε το <code>dashboard.html</code> και βάλτε το URL του Apps Script σας στη μεταβλητή <code>API_URL</code>.');
+    showStatus('Το dashboard δεν έχει συνδεθεί ακόμα με το Supabase. Ελέγξτε τις μεταβλητές <code>SUPABASE_URL</code> / <code>SUPABASE_ANON_KEY</code>.');
     return;
   }
   clearStatus();
@@ -2413,7 +2880,7 @@ async function load(){
     renderSSNotifs();
     refreshCommentNotifs();
   } catch(err){
-    showStatus('Δεν ήταν δυνατή η σύνδεση με το Google Sheet. Ελέγξτε ότι το Apps Script έχει γίνει deploy με πρόσβαση "Anyone".');
+    showStatus('Δεν ήταν δυνατή η σύνδεση με το Supabase. Ελέγξτε τη σύνδεση στο internet και δοκιμάστε ξανά.');
     listArea.innerHTML = '';
   }
 }
@@ -4096,8 +4563,8 @@ adminPasswordInput.addEventListener('keydown', (e) => {
 async function submitAdminPassword(){
   const pw = adminPasswordInput.value;
   if (!pw) return;
-  const res = await fetch(API_URL + '?action=checkAdmin&adminPassword=' + encodeURIComponent(pw)).then(r => r.json());
-  if (res.ok){
+  const ok = await checkAdminPassword_(pw);
+  if (ok){
     ADMIN_PASSWORD_LOCAL = pw;
     try { localStorage.setItem(ADMIN_STORAGE_KEY, pw); } catch(e){}
     adminModalOverlay.classList.remove('show');
@@ -4117,11 +4584,7 @@ adminStatsLink.addEventListener('click', async (e) => {
   document.getElementById('adminStatsContent').innerHTML = '<div class="chat-empty">Φόρτωση...</div>';
   document.getElementById('adminStatsOverlay').classList.add('show');
   try {
-    const stats = await fetch(API_URL + '?action=adminStats&adminPassword=' + encodeURIComponent(ADMIN_PASSWORD_LOCAL)).then(r => r.json());
-    if (stats.error){
-      document.getElementById('adminStatsContent').innerHTML = '<div class="chat-empty">Δεν ήταν δυνατή η φόρτωση των στατιστικών.</div>';
-      return;
-    }
+    const stats = await computeAdminStats_();
     renderAdminStats_(stats);
   } catch(err){
     document.getElementById('adminStatsContent').innerHTML = '<div class="chat-empty">Δεν ήταν δυνατή η φόρτωση των στατιστικών.</div>';
@@ -4330,7 +4793,7 @@ function renderAdminStats_(stats){
       </div>
     </div>
 
-    <div class="stats-note">Σημείωση: δεν εμφανίζονται διευθύνσεις IP -- το Google Apps Script δεν εκθέτει αυτό το στοιχείο. Οι επισκέψεις καταγράφονται μόνο αφού κάποιος δηλώσει όνομα στην εφαρμογή.</div>
+    <div class="stats-note">Σημείωση: δεν εμφανίζονται διευθύνσεις IP. Οι επισκέψεις καταγράφονται μόνο αφού κάποιος δηλώσει όνομα στην εφαρμογή.</div>
   `;
 }
 
