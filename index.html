@@ -184,14 +184,20 @@
 
   .admin-indicator{
     width:46px; height:46px; border-radius:50%;
-    background: color-mix(in srgb, var(--accent) 16%, var(--surface));
-    border:1px solid color-mix(in srgb, var(--accent) 55%, var(--border));
+    background: var(--surface);
+    border:1px solid var(--border);
     font-size:21.5px; display:flex; align-items:center; justify-content:center;
     box-shadow: 0 6px 18px rgba(34,53,38,0.18);
     padding:0; cursor:pointer;
-    transition: transform .15s ease;
+    opacity:.55;
+    transition: transform .15s ease, opacity .15s ease, background .15s ease, border-color .15s ease;
   }
-  .admin-indicator:hover{ transform: scale(1.08); }
+  .admin-indicator:hover{ transform: scale(1.08); opacity:.85; }
+  .admin-indicator.is-admin{
+    opacity:1;
+    background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+    border:1px solid color-mix(in srgb, var(--accent) 55%, var(--border));
+  }
 
   @media (max-width: 620px){
     .notif-wrap{ flex-direction:column; align-items:flex-end; gap:8px; top:12px; right:12px; }
@@ -199,7 +205,7 @@
     .notif-bell{ width:38px; height:38px; font-size:17px; }
     .notif-panel{ width:min(88vw, 300px); }
     .comment-notif-bell{ width:38px; height:38px; font-size:16px; }
-    .admin-indicator{ width:38px; height:38px; font-size:17px; }
+    .admin-indicator{ width:38px; height:38px; font-size:17px; order:3; }
   }
 
   @keyframes shimmer{
@@ -1672,7 +1678,7 @@
     </div>
   </div>
   </div>
-  <button id="adminIndicator" class="admin-indicator" title="Συνδεδεμένος ως διαχειριστής — κλικ για αποσύνδεση" type="button" style="display:none;">⚙️</button>
+  <button id="adminIndicator" class="admin-indicator" title="Διαχειριστής" type="button">⚙️</button>
 </div>
 
 <div id="nameModalOverlay" class="modal-overlay">
@@ -4542,12 +4548,12 @@ function refreshAdminLinkLabel(){
     adminLink.textContent = 'Διαχειριστής ✓ (Έξοδος)';
     adminLink.classList.add('is-admin');
     adminStatsLink.style.display = '';
-    adminIndicator.style.display = '';
+    adminIndicator.classList.add('is-admin');
   } else {
     adminLink.textContent = 'Διαχειριστής';
     adminLink.classList.remove('is-admin');
     adminStatsLink.style.display = 'none';
-    adminIndicator.style.display = 'none';
+    adminIndicator.classList.remove('is-admin');
   }
 }
 refreshAdminLinkLabel();
@@ -4561,19 +4567,21 @@ function logoutAdmin_(){
   }
 }
 
-adminLink.addEventListener('click', (e) => {
-  e.preventDefault();
-  if (isAdmin()){
-    logoutAdmin_();
-    return;
-  }
+function openAdminPrompt_(){
   adminPasswordInput.value = '';
   adminModalOverlay.classList.add('show');
   adminPasswordInput.focus();
+}
+
+adminLink.addEventListener('click', (e) => {
+  e.preventDefault();
+  if (isAdmin()){ logoutAdmin_(); return; }
+  openAdminPrompt_();
 });
 
 adminIndicator.addEventListener('click', () => {
-  logoutAdmin_();
+  if (isAdmin()){ logoutAdmin_(); return; }
+  openAdminPrompt_();
 });
 
 document.getElementById('adminModalCancel').addEventListener('click', () => {
