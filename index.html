@@ -182,12 +182,24 @@
   }
   .theme-toggle:hover{ transform: rotate(-12deg); }
 
+  .admin-indicator{
+    width:46px; height:46px; border-radius:50%;
+    background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+    border:1px solid color-mix(in srgb, var(--accent) 55%, var(--border));
+    font-size:21.5px; display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 6px 18px rgba(34,53,38,0.18);
+    padding:0; cursor:pointer;
+    transition: transform .15s ease;
+  }
+  .admin-indicator:hover{ transform: scale(1.08); }
+
   @media (max-width: 620px){
     .notif-wrap{ flex-direction:column; align-items:flex-end; gap:8px; top:12px; right:12px; }
     .theme-toggle{ width:38px; height:38px; font-size:17px; order:2; }
     .notif-bell{ width:38px; height:38px; font-size:17px; }
     .notif-panel{ width:min(88vw, 300px); }
     .comment-notif-bell{ width:38px; height:38px; font-size:16px; }
+    .admin-indicator{ width:38px; height:38px; font-size:17px; }
   }
 
   @keyframes shimmer{
@@ -1660,6 +1672,7 @@
     </div>
   </div>
   </div>
+  <button id="adminIndicator" class="admin-indicator" title="Συνδεδεμένος ως διαχειριστής — κλικ για αποσύνδεση" type="button" style="display:none;">⚙️</button>
 </div>
 
 <div id="nameModalOverlay" class="modal-overlay">
@@ -4522,33 +4535,45 @@ adminPasswordToggle.addEventListener('click', () => {
   adminPasswordInput.focus();
 });
 
+const adminIndicator = document.getElementById('adminIndicator');
+
 function refreshAdminLinkLabel(){
   if (isAdmin()){
     adminLink.textContent = 'Διαχειριστής ✓ (Έξοδος)';
     adminLink.classList.add('is-admin');
     adminStatsLink.style.display = '';
+    adminIndicator.style.display = '';
   } else {
     adminLink.textContent = 'Διαχειριστής';
     adminLink.classList.remove('is-admin');
     adminStatsLink.style.display = 'none';
+    adminIndicator.style.display = 'none';
   }
 }
 refreshAdminLinkLabel();
 
+function logoutAdmin_(){
+  if (confirm('Αποσύνδεση από λειτουργία διαχειριστή σε αυτή τη συσκευή;')){
+    ADMIN_PASSWORD_LOCAL = null;
+    try { localStorage.removeItem(ADMIN_STORAGE_KEY); } catch(e){}
+    refreshAdminLinkLabel();
+    renderChatMessages_(LAST_CHAT_COMMENTS_);
+  }
+}
+
 adminLink.addEventListener('click', (e) => {
   e.preventDefault();
   if (isAdmin()){
-    if (confirm('Αποσύνδεση από λειτουργία διαχειριστή σε αυτή τη συσκευή;')){
-      ADMIN_PASSWORD_LOCAL = null;
-      try { localStorage.removeItem(ADMIN_STORAGE_KEY); } catch(e){}
-      refreshAdminLinkLabel();
-      renderChatMessages_(LAST_CHAT_COMMENTS_);
-    }
+    logoutAdmin_();
     return;
   }
   adminPasswordInput.value = '';
   adminModalOverlay.classList.add('show');
   adminPasswordInput.focus();
+});
+
+adminIndicator.addEventListener('click', () => {
+  logoutAdmin_();
 });
 
 document.getElementById('adminModalCancel').addEventListener('click', () => {
