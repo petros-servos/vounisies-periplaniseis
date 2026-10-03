@@ -1156,6 +1156,43 @@
   @media (min-width: 1100px){
     .admin-stats-box{ max-width:1100px; }
   }
+
+  /* ---- Υπολογιστής Χρόνου Πεζοπορίας ---- */
+  .hikecalc-box{ max-width:560px; width:94%; max-height:88vh; overflow-y:auto; text-align:left; }
+  .hikecalc-models{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+  .hikecalc-model-btn{
+    flex:1; min-width:100px;
+    background: var(--surface-2); border:1.5px solid var(--border); border-radius:10px;
+    padding:9px 8px; font-family:Calibri, Carlito, sans-serif; font-size:14.3px; font-weight:700;
+    color: var(--text); cursor:pointer; text-align:center;
+    transition: background .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .hikecalc-model-btn:hover{ border-color: var(--accent); }
+  .hikecalc-model-btn.active{
+    background: var(--accent); border-color: var(--accent); color:#1c1204;
+  }
+  .hikecalc-model-desc{
+    font-size:13.3px; color: var(--text-dim); margin:-6px 0 16px; line-height:1.5;
+  }
+  .hikecalc-section{ display:none; }
+  .hikecalc-section.active{ display:block; }
+  .hikecalc-trander-extra{
+    margin-top:14px; padding-top:14px; border-top:1px dashed var(--border);
+  }
+  .hikecalc-trander-extra h4{
+    font-family:Calibri, Carlito, sans-serif; font-size:14.7px; margin:0 0 4px; color: var(--text);
+  }
+  .hikecalc-trander-extra .hint{ font-size:12.8px; color: var(--text-dim); margin:0 0 10px; line-height:1.5; }
+  .hikecalc-result{
+    margin-top:18px; padding:14px 16px; border-radius:12px;
+    background: var(--surface-2); border:1px solid var(--border);
+    display:none;
+  }
+  .hikecalc-result.show{ display:block; }
+  .hikecalc-result .big{ font-size:24px; font-weight:800; color: var(--navy); }
+  .hikecalc-result .sub{ font-size:13.5px; color: var(--text-dim); margin-top:4px; line-height:1.5; }
+  .hikecalc-result.is-danger{ background: var(--danger-soft); border-color: var(--danger); }
+  .hikecalc-result.is-danger .big{ color: var(--danger); }
   .admin-stats-content{ text-align:left; }
   .stats-section{ margin-bottom:20px; }
   .stats-grid-2col{ display:block; }
@@ -2067,6 +2104,75 @@
   </div>
 </div>
 
+<div id="hikeCalcOverlay" class="modal-overlay">
+  <div class="modal-box hikecalc-box">
+    <h3>🧮 Υπολογιστής Χρόνου Πεζοπορίας</h3>
+    <div class="hikecalc-models">
+      <button type="button" class="hikecalc-model-btn active" id="hcModelNaismith" data-model="naismith">Naismith</button>
+      <button type="button" class="hikecalc-model-btn" id="hcModelRichin" data-model="richin">Richin</button>
+      <button type="button" class="hikecalc-model-btn" id="hcModelTrander" data-model="trander">Trander</button>
+    </div>
+    <p class="hikecalc-model-desc" id="hcModelDesc">Ο κλασικός κανόνας του Naismith (1892): 5 km/h σε επίπεδο έδαφος, +1 ώρα ανά 600m ανάβασης, -1 ώρα ανά 600m κατάβασης.</p>
+    <form id="hikeCalcForm">
+      <div class="form-grid">
+        <div>
+          <label for="hcDistance">Απόσταση (km)</label>
+          <input type="number" id="hcDistance" step="0.1" min="0" placeholder="π.χ. 10" required>
+        </div>
+        <div>
+          <label for="hcAscent">Ανάβαση (m)</label>
+          <input type="number" id="hcAscent" step="1" min="0" placeholder="π.χ. 600" required>
+        </div>
+        <div>
+          <label for="hcDescent">Κατάβαση (m)</label>
+          <input type="number" id="hcDescent" step="1" min="0" placeholder="π.χ. 600" required>
+        </div>
+        <div id="hcNaismithSlopeWrap">
+          <label for="hcNaismithSlope">Διόρθωση κατάβασης</label>
+          <select id="hcNaismithSlope">
+            <option value="">— Κανονική κλίση —</option>
+            <option value="gentle">Ομαλή πλαγιά (-10'/300m)</option>
+            <option value="steep">Απότομη πλαγιά (+10'/300m)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="hikecalc-trander-extra" id="hcTranderExtra" style="display:none;">
+        <h4>Τεστ φυσικής κατάστασης</h4>
+        <p class="hint">Χρονομέτρησε πόσα λεπτά χρειάζεσαι για να διανύσεις 800m απόσταση με 300m ανάβαση, με τον κανονικό σου ρυθμό. Θα στρογγυλοποιηθεί στο κοντινότερο επίπεδο (15 / 20 / 25 / 30 / 40 / 50).</p>
+        <div class="form-grid">
+          <div>
+            <label for="hcFitnessTest">Χρόνος για 800m / +300m Υ.Δ. (λεπτά)</label>
+            <input type="number" id="hcFitnessTest" step="1" min="1" placeholder="π.χ. 22">
+          </div>
+          <div>
+            <label for="hcTerrain">Συνθήκες εδάφους</label>
+            <select id="hcTerrain">
+              <option value="0">Κανονικές</option>
+              <option value="1">Δύσκολες (-1 επίπεδο)</option>
+              <option value="2">Πολύ δύσκολες (-2 επίπεδα)</option>
+            </select>
+          </div>
+          <div class="full">
+            <label class="no-date-check-label" for="hcLoad">
+              <input type="checkbox" id="hcLoad">
+              🎒 Φορτίο ~20kg (-1 επίπεδο)
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="submit" class="btn-accent">Υπολογισμός</button>
+        <button type="button" class="btn-ghost" id="hikeCalcClose">Κλείσιμο</button>
+      </div>
+    </form>
+    <div class="hikecalc-result" id="hikeCalcResult">
+      <div class="big" id="hikeCalcResultBig"></div>
+      <div class="sub" id="hikeCalcResultSub"></div>
+    </div>
+  </div>
+</div>
 
 <div id="editModalOverlay" class="modal-overlay">
   <div class="modal-box">
@@ -2237,6 +2343,7 @@
     <button class="resource-tab" id="tabMountains" type="button">⛰️ Ελληνικά Βουνά &gt; 1000 m</button>
     <button class="resource-tab" id="tabKatafygia" type="button">🛖 Ορειβατικά Καταφύγια</button>
     <button class="resource-tab" id="tabWeather" type="button">🌤️ Πρόβλεψη Καιρού</button>
+    <button class="resource-tab" id="tabHikeCalc" type="button">🧮 Υπολογιστής Χρόνου Πεζοπορίας</button>
   </div>
 
   <div class="toolbar">
@@ -3016,6 +3123,176 @@ weatherChoiceOverlay.addEventListener('click', (e) => {
 weatherChoiceOverlay.querySelectorAll('.weather-choice-link').forEach(link => {
   link.addEventListener('click', () => weatherChoiceOverlay.classList.remove('show'));
 });
+
+// ---- Υπολογιστής Χρόνου Πεζοπορίας (Naismith / Richin / Trander) ----
+(function(){
+  const hikeCalcOverlay = document.getElementById('hikeCalcOverlay');
+  const hikeCalcForm = document.getElementById('hikeCalcForm');
+  const hikeCalcResult = document.getElementById('hikeCalcResult');
+  const hikeCalcResultBig = document.getElementById('hikeCalcResultBig');
+  const hikeCalcResultSub = document.getElementById('hikeCalcResultSub');
+  const hcNaismithSlopeWrap = document.getElementById('hcNaismithSlopeWrap');
+  const hcTranderExtra = document.getElementById('hcTranderExtra');
+  const hcModelDesc = document.getElementById('hcModelDesc');
+
+  const MODEL_DESCRIPTIONS = {
+    naismith: 'Ο κλασικός κανόνας του Naismith (1892): 5 km/h σε επίπεδο έδαφος, +1 ώρα ανά 600m ανάβασης, -1 ώρα ανά 600m κατάβασης.',
+    richin: 'Ο κανόνας του Richin: 3,5 km/h σε επίπεδο έδαφος (με φορτίο ~17kg), +1 ώρα ανά 300m ανάβασης, -1 ώρα ανά 300m κατάβασης.',
+    trander: 'Το μοντέλο Trander (1965): προσαρμόζει τον χρόνο του Naismith στο προσωπικό σου επίπεδο φυσικής κατάστασης και στις συνθήκες πεδίου (Πίνακας-7).'
+  };
+
+  let hcCurrentModel = 'naismith';
+
+  document.querySelectorAll('.hikecalc-model-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      hcCurrentModel = btn.dataset.model;
+      document.querySelectorAll('.hikecalc-model-btn').forEach(b => b.classList.toggle('active', b === btn));
+      hcModelDesc.textContent = MODEL_DESCRIPTIONS[hcCurrentModel] || '';
+      hcNaismithSlopeWrap.style.display = (hcCurrentModel === 'naismith') ? '' : 'none';
+      hcTranderExtra.style.display = (hcCurrentModel === 'trander') ? '' : 'none';
+      hikeCalcResult.classList.remove('show', 'is-danger');
+    });
+  });
+
+  document.getElementById('tabHikeCalc').addEventListener('click', () => {
+    hikeCalcOverlay.classList.add('show');
+  });
+  document.getElementById('hikeCalcClose').addEventListener('click', () => {
+    hikeCalcOverlay.classList.remove('show');
+  });
+  hikeCalcOverlay.addEventListener('click', (e) => {
+    if (e.target === hikeCalcOverlay) hikeCalcOverlay.classList.remove('show');
+  });
+
+  function hoursToHM(h){
+    if (!isFinite(h)) return '—';
+    const sign = h < 0 ? '-' : '';
+    h = Math.abs(h);
+    const totalMin = Math.round(h * 60);
+    const hh = Math.floor(totalMin / 60);
+    const mm = totalMin % 60;
+    return `${sign}${hh}:${String(mm).padStart(2,'0')}`;
+  }
+
+  function naismithHours(distance, ascent, descent, slopeAdj){
+    let t = (distance / 5) + (ascent / 600) - (descent / 600);
+    if (slopeAdj === 'gentle') t -= (descent / 300) * (10 / 60);
+    else if (slopeAdj === 'steep') t += (descent / 300) * (10 / 60);
+    return Math.max(t, 0);
+  }
+
+  function richinHours(distance, ascent, descent){
+    const t = (distance / 3.5) + (ascent / 300) - (descent / 300);
+    return Math.max(t, 0);
+  }
+
+  // ---- Πίνακας-7 (Trander): χρόνος πορείας κατά Naismith (ώρες) -> επίπεδο φυσικής κατάστασης -> συνολικός χρόνος (λεπτά) ----
+  const TRANDER_COLS = [2,3,4,5,6,7,8,9,10,12,14,16,18,20,22,24];
+  const TRANDER_LEVELS = [15,20,25,30,40,50];
+  const TRANDER_TABLE = {
+    15: [60,90,120,165,210,270,330,405,465,600,750,870,1020,1170,1320,1440],
+    20: [75,135,195,270,330,390,465,525,600,750,900,1050,1200,1380,null,null],
+    25: [90,180,255,330,420,510,600,690,795,900,1020,null,null,null,null,null],
+    30: [120,210,300,405,510,630,750,870,null,null,null,null,null,null,null,null],
+    40: [165,255,345,450,570,690,null,null,null,null,null,null,null,null,null,null],
+    50: [195,285,390,510,null,null,null,null,null,null,null,null,null,null,null,null]
+  };
+
+  function nearestFitnessLevel(testMinutes){
+    let best = TRANDER_LEVELS[0], bestDiff = Infinity;
+    TRANDER_LEVELS.forEach(lv => {
+      const d = Math.abs(lv - testMinutes);
+      if (d < bestDiff){ bestDiff = d; best = lv; }
+    });
+    return best;
+  }
+
+  // Επιστρέφει: { minutes } σε επιτυχία, { outOfSafety:true } αν το κελί είναι εκτός ορίων ασφαλείας,
+  // ή { outOfTable:true } αν ο χρόνος Naismith ξεπερνά το εύρος του πίνακα (>24 ώρες).
+  function trandLookup(level, naismithH){
+    const vals = TRANDER_TABLE[level];
+    const cols = TRANDER_COLS;
+    if (naismithH <= cols[0]){
+      if (vals[0] == null) return { outOfSafety: true };
+      return { minutes: vals[0] * (naismithH / cols[0]) };
+    }
+    for (let i = 0; i < cols.length - 1; i++){
+      if (naismithH >= cols[i] && naismithH <= cols[i+1]){
+        const v0 = vals[i], v1 = vals[i+1];
+        if (v0 == null || v1 == null) return { outOfSafety: true };
+        const t = (naismithH - cols[i]) / (cols[i+1] - cols[i]);
+        return { minutes: v0 + t * (v1 - v0) };
+      }
+    }
+    return { outOfTable: true };
+  }
+
+  hikeCalcForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const distance = parseFloat(document.getElementById('hcDistance').value) || 0;
+    const ascent = parseFloat(document.getElementById('hcAscent').value) || 0;
+    const descent = parseFloat(document.getElementById('hcDescent').value) || 0;
+
+    hikeCalcResult.classList.remove('is-danger');
+
+    if (hcCurrentModel === 'naismith'){
+      const slopeAdj = document.getElementById('hcNaismithSlope').value;
+      const h = naismithHours(distance, ascent, descent, slopeAdj);
+      hikeCalcResultBig.textContent = '⏱️ ' + hoursToHM(h) + ' ώρες';
+      hikeCalcResultSub.textContent = 'Κανόνας Naismith: ' + distance + ' km, +' + ascent + 'm / -' + descent + 'm.';
+      hikeCalcResult.classList.add('show');
+      return;
+    }
+
+    if (hcCurrentModel === 'richin'){
+      const h = richinHours(distance, ascent, descent);
+      hikeCalcResultBig.textContent = '⏱️ ' + hoursToHM(h) + ' ώρες';
+      hikeCalcResultSub.textContent = 'Κανόνας Richin: ' + distance + ' km, +' + ascent + 'm / -' + descent + 'm (με φορτίο ~17kg).';
+      hikeCalcResult.classList.add('show');
+      return;
+    }
+
+    // Trander
+    const testMinutes = parseFloat(document.getElementById('hcFitnessTest').value);
+    if (!testMinutes || testMinutes <= 0){
+      hikeCalcResultBig.textContent = '⚠️ Συμπλήρωσε το τεστ φυσικής κατάστασης';
+      hikeCalcResultSub.textContent = 'Χρειαζόμαστε τον χρόνο σου για 800m απόσταση με 300m ανάβαση, ώστε να προσδιορίσουμε το επίπεδο φυσικής κατάστασης.';
+      hikeCalcResult.classList.add('show', 'is-danger');
+      return;
+    }
+    const baseH = naismithHours(distance, ascent, descent, '');
+    let level = nearestFitnessLevel(testMinutes);
+    let idx = TRANDER_LEVELS.indexOf(level);
+    const load = document.getElementById('hcLoad').checked;
+    const terrainSteps = parseInt(document.getElementById('hcTerrain').value, 10) || 0;
+    idx = Math.min(idx + (load ? 1 : 0) + terrainSteps, TRANDER_LEVELS.length - 1);
+    level = TRANDER_LEVELS[idx];
+
+    const lookup = trandLookup(level, baseH);
+    const adjNote = (load || terrainSteps > 0)
+      ? ' (προσαρμοσμένο από ' + nearestFitnessLevel(testMinutes) + ' σε ' + level + ' λόγω ' + [load ? 'φορτίου' : null, terrainSteps > 0 ? 'εδάφους' : null].filter(Boolean).join(' & ') + ')'
+      : '';
+
+    if (lookup.outOfSafety){
+      hikeCalcResultBig.textContent = '🚫 Εκτός ορίων ασφαλείας';
+      hikeCalcResultSub.textContent = 'Με βάση τον χρόνο Naismith (' + hoursToHM(baseH) + 'ω) και επίπεδο φυσικής κατάστασης ' + level + adjNote + ', η διαδρομή υπερβαίνει τις δυνατότητες — μην την επιχειρήσετε έτσι.';
+      hikeCalcResult.classList.add('show', 'is-danger');
+      return;
+    }
+    if (lookup.outOfTable){
+      hikeCalcResultBig.textContent = '⚠️ Εκτός ορίων πίνακα';
+      hikeCalcResultSub.textContent = 'Ο χρόνος Naismith (' + hoursToHM(baseH) + 'ω) ξεπερνά το εύρος του Πίνακα-7 (έως 24 ώρες).';
+      hikeCalcResult.classList.add('show', 'is-danger');
+      return;
+    }
+
+    const totalH = lookup.minutes / 60;
+    const extraH = totalH - baseH;
+    hikeCalcResultBig.textContent = '⏱️ ' + hoursToHM(totalH) + ' ώρες';
+    hikeCalcResultSub.textContent = 'Μοντέλο Trander, επίπεδο φυσικής κατάστασης ' + level + adjNote + '. Βάση Naismith: ' + hoursToHM(baseH) + 'ω, δηλαδή ' + hoursToHM(extraH) + ' ώρες παραπάνω.';
+    hikeCalcResult.classList.add('show');
+  });
+})();
 
 function render(){
   let rows = [...ROWS];
