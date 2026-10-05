@@ -808,8 +808,9 @@
     box-shadow: var(--card-shadow-hover);
   }
 
-  /* ---- "Ορειβατικά & Χρήσιμα" -- hamburger menu στο κινητό αντί για τη σειρά κουμπιών ---- */
-  .resource-more-wrap{ display:none; position:relative; margin-bottom:18px; }
+  /* ---- "Ορειβατικά & Χρήσιμα" -- hamburger menu αντί για τη σειρά κουμπιών (κινητό + υπολογιστής) ---- */
+  .resource-tabs{ display:none; }
+  .resource-more-wrap{ position:relative; margin-bottom:18px; }
   .resource-more-btn{
     width:100%;
     background:#f5efe1;
@@ -822,22 +823,33 @@
     color: var(--text);
     cursor:pointer;
     text-align:left;
+    transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease;
+  }
+  @media (min-width: 621px){
+    .resource-more-btn{ width:auto; display:inline-block; }
   }
   html[data-theme="dark"] .resource-more-btn{
     background:#2b2418;
     border-color:#4a3f28;
   }
+  .resource-more-btn:hover{
+    border-color: var(--hover-glow);
+    box-shadow: var(--card-shadow-hover);
+  }
   .resource-more-menu{
     display:none;
-    position:absolute; top:calc(100% + 8px); left:0; right:0; z-index:900;
-    background: var(--surface);
-    background: color-mix(in srgb, var(--surface) 96%, transparent);
+    position:absolute; top:calc(100% + 8px); left:0; right:auto; z-index:900;
+    min-width:280px;
+    background: color-mix(in srgb, #a897d9 30%, var(--surface));
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border:1px solid var(--border);
+    border:1px solid #a897d9;
     border-radius: var(--radius);
     box-shadow: 0 10px 30px rgba(34,53,38,0.22);
     padding:8px;
+  }
+  html[data-theme="dark"] .resource-more-menu{
+    background: color-mix(in srgb, #a897d9 34%, var(--surface));
   }
   .resource-more-menu.open{ display:block; }
   .resource-more-menu-header{
@@ -858,14 +870,13 @@
     border-radius:9px;
     cursor:pointer;
   }
-  .resource-more-item:active{ background: var(--surface-2); }
-  .resource-more-item + .resource-more-item{ border-top:1px solid var(--border); }
+  .resource-more-item:active{ background: color-mix(in srgb, #a897d9 45%, transparent); }
+  .resource-more-item + .resource-more-item{ border-top:1px solid color-mix(in srgb, #a897d9 35%, transparent); }
   @media (hover:hover){
-    .resource-more-item:hover{ background: var(--surface-2); }
+    .resource-more-item:hover{ background: color-mix(in srgb, #a897d9 25%, transparent); }
   }
   @media (max-width: 620px){
-    .resource-tabs{ display:none; }
-    .resource-more-wrap{ display:block; }
+    .resource-more-menu{ left:0; right:0; min-width:0; }
   }
 
 
