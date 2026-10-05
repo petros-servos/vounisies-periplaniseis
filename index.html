@@ -622,10 +622,10 @@
     box-shadow: 0 8px 20px rgba(0,0,0,0.06);
   }
   .filters{ display:flex; flex-wrap:wrap; gap:8px; }
-  /* Το ζευγάρι "Κάθε διαμονή" + "Για να θυμάμαι" μένει πάντα στην ίδια γραμμή,
-     ακόμα και σε στενή οθόνη κινητού, αντί να στοιβάζονται το ένα κάτω από το άλλο. */
-  .filter-pair{ display:flex; flex:1 1 220px; gap:8px; min-width:0; }
-  .filter-pair select{ flex:1 1 0; min-width:0; }
+  /* Σε desktop/tablet το .filter-pair δεν υπάρχει οπτικά (display:contents) --
+     τα δύο select συμπεριφέρονται ακριβώς όπως πριν, σαν απευθείας παιδιά του
+     .filters, χωρίς να επηρεάζουν το πλάτος του πλαισίου αναζήτησης. */
+  .filter-pair{ display:contents; }
   select, input[type=text], input[type=date], input[type=password], textarea{
     background: var(--surface);
     border:1px solid var(--border);
@@ -1369,6 +1369,9 @@
     .toolbar{ flex-wrap:wrap; overflow-x:visible; }
     .filters{ flex-wrap:wrap; }
     .add-toggle{ flex-wrap:wrap; }
+    /* Το "Κάθε διαμονή" + "Για να θυμάμαι" μένουν πάντα στην ίδια γραμμή σε κινητό. */
+    .filter-pair{ display:flex; gap:8px; width:100%; }
+    .filter-pair select{ flex:1 1 0; min-width:0; }
   }
 
   .confetti-layer{
