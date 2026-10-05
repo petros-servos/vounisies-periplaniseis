@@ -840,24 +840,18 @@
     display:none;
     position:absolute; top:calc(100% + 8px); left:0; right:auto; z-index:900;
     min-width:280px;
-    background: color-mix(in srgb, #a897d9 30%, var(--surface));
+    background: color-mix(in srgb, var(--accent) 16%, var(--surface));
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border:1px solid #a897d9;
+    border:1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
     border-radius: var(--radius);
     box-shadow: 0 10px 30px rgba(34,53,38,0.22);
     padding:8px;
   }
   html[data-theme="dark"] .resource-more-menu{
-    background: color-mix(in srgb, #a897d9 34%, var(--surface));
+    background: color-mix(in srgb, var(--accent) 20%, var(--surface));
   }
   .resource-more-menu.open{ display:block; }
-  .resource-more-menu-header{
-    font-family:Calibri, Carlito, sans-serif; font-weight:700; font-size:13px;
-    text-transform:uppercase; letter-spacing:0.03em;
-    color: var(--text-dim);
-    padding:8px 12px 4px;
-  }
   .resource-more-item{
     display:block; width:100%;
     background:none; border:none;
@@ -870,10 +864,10 @@
     border-radius:9px;
     cursor:pointer;
   }
-  .resource-more-item:active{ background: color-mix(in srgb, #a897d9 45%, transparent); }
-  .resource-more-item + .resource-more-item{ border-top:1px solid color-mix(in srgb, #a897d9 35%, transparent); }
+  .resource-more-item:active{ background: color-mix(in srgb, var(--accent) 28%, transparent); }
+  .resource-more-item + .resource-more-item{ border-top:1px solid color-mix(in srgb, var(--accent) 22%, transparent); }
   @media (hover:hover){
-    .resource-more-item:hover{ background: color-mix(in srgb, #a897d9 25%, transparent); }
+    .resource-more-item:hover{ background: color-mix(in srgb, var(--accent) 16%, transparent); }
   }
   @media (max-width: 620px){
     .resource-more-menu{ left:0; right:0; min-width:0; }
@@ -2446,9 +2440,8 @@
   </div>
 
   <div class="resource-more-wrap" id="resourceMoreWrap">
-    <button class="resource-more-btn" id="resourceMoreBtn" type="button">☰ Περισσότερα</button>
+    <button class="resource-more-btn" id="resourceMoreBtn" type="button">☰ Ορειβατικά &amp; Χρήσιμα</button>
     <div class="resource-more-menu" id="resourceMoreMenu">
-      <div class="resource-more-menu-header">Ορειβατικά &amp; Χρήσιμα</div>
       <button class="resource-more-item" data-target="tabGlossary" type="button">📖 Ορειβατική Ορολογία</button>
       <button class="resource-more-item" data-target="tabMountains" type="button">⛰️ Ελληνικά Βουνά &gt; 1000 m</button>
       <button class="resource-more-item" data-target="tabKatafygia" type="button">🛖 Ορειβατικά Καταφύγια</button>
