@@ -257,7 +257,7 @@
   .notif-badge.show{ display:flex; }
   .notif-panel{
     display:none;
-    position:absolute; top:56px; right:0;
+    position:absolute; top:56px; right:0; z-index:1010;
     width:300px; max-height:360px; overflow-y:auto;
     background: var(--surface);
     background: color-mix(in srgb, var(--surface) 82%, transparent);
@@ -319,7 +319,7 @@
   .comment-notif-badge.show{ display:flex; }
   .comment-notif-panel{
     display:none;
-    position:absolute; top:56px; right:0;
+    position:absolute; top:56px; right:0; z-index:1010;
     width:min(90vw, 330px); max-height:360px; overflow-y:auto;
     background: var(--surface);
     background: color-mix(in srgb, var(--surface) 82%, transparent);
@@ -2560,7 +2560,25 @@ function showStatus(msg){
 }
 function clearStatus(){ statusBanner.classList.remove('show'); }
 
+// ---- Αυτόματη διαγραφή παλιών εξορμήσεων ----
+// Μόλις περάσει η ημερομηνία μιας εξόρμησης (η "πρώτη ημέρα", δηλ. το πεδίο
+// date), διαγράφεται αυτόματα μαζί με τα σχόλιά της. Οι προτάσεις Summit
+// Squad χωρίς ημερομηνία (date = null) δεν επηρεάζονται ποτέ.
+// Δεν υπάρχει scheduler στο δωρεάν Supabase, οπότε η διαγραφή "κουμπώνει"
+// στην πρώτη φόρτωση δεδομένων της σελίδας -- αρκεί κάποιος να ανοίξει το
+// dashboard για να γίνει το καθάρισμα, χωρίς να χρειάζεται pg_cron/Edge Function.
+let AUTO_CLEANUP_DONE_ = false;
+async function autoCleanupOldExpeditions_(){
+  if (AUTO_CLEANUP_DONE_) return;
+  AUTO_CLEANUP_DONE_ = true;
+  try{
+    const todayYMD = formatYMD_(new Date());
+    await sb.from('expeditions').delete().lt('date', todayYMD);
+  } catch(e){ /* σιωπηλή αποτυχία -- δεν μπλοκάρει τη φόρτωση της σελίδας */ }
+}
+
 async function apiGet(){
+  await autoCleanupOldExpeditions_();
   const { data: exps, error } = await sb.from('expeditions').select('*').order('created_at', { ascending: true });
   if (error) return { error: error.message };
   const { data: comments } = await sb.from('comments').select('id, expedition_id');
