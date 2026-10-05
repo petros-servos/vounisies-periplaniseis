@@ -622,6 +622,10 @@
     box-shadow: 0 8px 20px rgba(0,0,0,0.06);
   }
   .filters{ display:flex; flex-wrap:wrap; gap:8px; }
+  /* Το ζευγάρι "Κάθε διαμονή" + "Για να θυμάμαι" μένει πάντα στην ίδια γραμμή,
+     ακόμα και σε στενή οθόνη κινητού, αντί να στοιβάζονται το ένα κάτω από το άλλο. */
+  .filter-pair{ display:flex; flex:1 1 220px; gap:8px; min-width:0; }
+  .filter-pair select{ flex:1 1 0; min-width:0; }
   select, input[type=text], input[type=date], input[type=password], textarea{
     background: var(--surface);
     border:1px solid var(--border);
@@ -2460,16 +2464,18 @@
       </div>
       <select id="fMonth"><option value="">Όλοι οι μήνες</option></select>
       <select id="fDuration"><option value="">Κάθε διάρκεια</option></select>
-      <select id="fStay"><option value="">Κάθε διαμονή</option></select>
-      <select id="fRemember" class="remember-select">
-        <option value="">🧠 Για να θυμάμαι</option>
-        <option value="Πέτρος">Πέτρος</option>
-        <option value="Κυριάκος">Κυριάκος</option>
-        <option value="Ελένη">Ελένη</option>
-        <option value="Άρτεμις - Ντιάνα">Άρτεμις - Ντιάνα</option>
-        <option value="Σοφία">Σοφία</option>
-        <option value="Εύη">Εύη</option>
-      </select>
+      <div class="filter-pair">
+        <select id="fStay"><option value="">Κάθε διαμονή</option></select>
+        <select id="fRemember" class="remember-select">
+          <option value="">🧠 Για να θυμάμαι</option>
+          <option value="Πέτρος">Πέτρος</option>
+          <option value="Κυριάκος">Κυριάκος</option>
+          <option value="Ελένη">Ελένη</option>
+          <option value="Άρτεμις - Ντιάνα">Άρτεμις - Ντιάνα</option>
+          <option value="Σοφία">Σοφία</option>
+          <option value="Εύη">Εύη</option>
+        </select>
+      </div>
     </div>
     <div class="add-toggle">
       <button class="btn-accent" id="btnShowForm">+ Νέα πρόταση</button>
