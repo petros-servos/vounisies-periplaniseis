@@ -1366,7 +1366,10 @@
     .card-face{ grid-template-columns: 60px 1fr; }
     .card-actions{ grid-column: 1 / -1; flex-direction:row; flex-wrap:wrap; justify-content:flex-end; }
     .form-grid{ grid-template-columns: 1fr; }
-    .toolbar{ flex-wrap:wrap; overflow-x:visible; }
+    /* Δεξί περιθώριο στο sticky toolbar ώστε το περιεχόμενό του να μην
+       περνάει ποτέ κάτω από τη σταθερή (fixed) στήλη εικονιδίων ειδοποιήσεων
+       πάνω-δεξιά (38px εικονίδιο + 12px απόσταση από την άκρη + λίγος αέρας). */
+    .toolbar{ flex-wrap:wrap; overflow-x:visible; padding-right:62px; }
     .filters{ flex-wrap:wrap; }
     .add-toggle{ flex-wrap:wrap; }
     /* Το "Κάθε διαμονή" + "Για να θυμάμαι" μένουν πάντα στην ίδια γραμμή σε κινητό. */
