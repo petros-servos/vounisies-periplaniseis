@@ -808,6 +808,66 @@
     box-shadow: var(--card-shadow-hover);
   }
 
+  /* ---- "Ορειβατικά & Χρήσιμα" -- hamburger menu στο κινητό αντί για τη σειρά κουμπιών ---- */
+  .resource-more-wrap{ display:none; position:relative; margin-bottom:18px; }
+  .resource-more-btn{
+    width:100%;
+    background:#f5efe1;
+    border:1px solid #e6d9bd;
+    border-radius:9px;
+    padding:12px 16px;
+    font-family:Calibri, Carlito, sans-serif;
+    font-weight:700;
+    font-size:15.5px;
+    color: var(--text);
+    cursor:pointer;
+    text-align:left;
+  }
+  html[data-theme="dark"] .resource-more-btn{
+    background:#2b2418;
+    border-color:#4a3f28;
+  }
+  .resource-more-menu{
+    display:none;
+    position:absolute; top:calc(100% + 8px); left:0; right:0; z-index:900;
+    background: var(--surface);
+    background: color-mix(in srgb, var(--surface) 96%, transparent);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border:1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 10px 30px rgba(34,53,38,0.22);
+    padding:8px;
+  }
+  .resource-more-menu.open{ display:block; }
+  .resource-more-menu-header{
+    font-family:Calibri, Carlito, sans-serif; font-weight:700; font-size:13px;
+    text-transform:uppercase; letter-spacing:0.03em;
+    color: var(--text-dim);
+    padding:8px 12px 4px;
+  }
+  .resource-more-item{
+    display:block; width:100%;
+    background:none; border:none;
+    text-align:left;
+    font-family:Calibri, Carlito, sans-serif;
+    font-weight:600; font-size:16px;
+    color: var(--text);
+    padding:14px 12px;
+    margin:2px 0;
+    border-radius:9px;
+    cursor:pointer;
+  }
+  .resource-more-item:active{ background: var(--surface-2); }
+  .resource-more-item + .resource-more-item{ border-top:1px solid var(--border); }
+  @media (hover:hover){
+    .resource-more-item:hover{ background: var(--surface-2); }
+  }
+  @media (max-width: 620px){
+    .resource-tabs{ display:none; }
+    .resource-more-wrap{ display:block; }
+  }
+
 
   .empty-state{
     text-align:center;
@@ -2372,6 +2432,18 @@
     <button class="resource-tab" id="tabKatafygia" type="button">🛖 Ορειβατικά Καταφύγια</button>
     <button class="resource-tab" id="tabWeather" type="button">🌤️ Πρόβλεψη Καιρού</button>
     <button class="resource-tab" id="tabHikeCalc" type="button">🧮 Υπολογιστής Χρόνου Πεζοπορίας</button>
+  </div>
+
+  <div class="resource-more-wrap" id="resourceMoreWrap">
+    <button class="resource-more-btn" id="resourceMoreBtn" type="button">☰ Περισσότερα</button>
+    <div class="resource-more-menu" id="resourceMoreMenu">
+      <div class="resource-more-menu-header">Ορειβατικά &amp; Χρήσιμα</div>
+      <button class="resource-more-item" data-target="tabGlossary" type="button">📖 Ορειβατική Ορολογία</button>
+      <button class="resource-more-item" data-target="tabMountains" type="button">⛰️ Ελληνικά Βουνά &gt; 1000 m</button>
+      <button class="resource-more-item" data-target="tabKatafygia" type="button">🛖 Ορειβατικά Καταφύγια</button>
+      <button class="resource-more-item" data-target="tabWeather" type="button">🌤️ Πρόβλεψη Καιρού</button>
+      <button class="resource-more-item" data-target="tabHikeCalc" type="button">🧮 Υπολογιστής Χρόνου Πεζοπορίας</button>
+    </div>
   </div>
 
   <div class="toolbar">
@@ -5306,6 +5378,30 @@ function initWelcomeOverlay_(){
   });
 }
 initWelcomeOverlay_();
+
+// ---- "☰ Περισσότερα" -- hamburger menu στο κινητό για τα κουμπιά
+// Ορολογία/Βουνά/Καταφύγια/Καιρός/Υπολογιστής. Κάθε στοιχείο απλά
+// "πατάει" το αντίστοιχο κρυφό κουμπί της κανονικής σειράς (resource-tab),
+// ώστε να ξαναχρησιμοποιείται όλη η υπάρχουσα λογική ανοίγματος.
+(function(){
+  const wrap = document.getElementById('resourceMoreWrap');
+  const btn = document.getElementById('resourceMoreBtn');
+  const menu = document.getElementById('resourceMoreMenu');
+  if (!wrap || !btn || !menu) return;
+  btn.addEventListener('click', () => {
+    menu.classList.toggle('open');
+  });
+  document.addEventListener('click', (e) => {
+    if (!wrap.contains(e.target)) menu.classList.remove('open');
+  });
+  menu.querySelectorAll('.resource-more-item').forEach(item => {
+    item.addEventListener('click', () => {
+      menu.classList.remove('open');
+      const target = document.getElementById(item.dataset.target);
+      if (target) target.click();
+    });
+  });
+})();
 
 load();
 </script>
