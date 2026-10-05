@@ -1370,10 +1370,14 @@
        περνάει ποτέ κάτω από τη σταθερή (fixed) στήλη εικονιδίων ειδοποιήσεων
        πάνω-δεξιά (38px εικονίδιο + 12px απόσταση από την άκρη + λίγος αέρας). */
     .toolbar{ flex-wrap:wrap; overflow-x:visible; padding-right:62px; }
-    .filters{ flex-wrap:wrap; }
+    /* min-width:0 είναι απαραίτητο εδώ -- χωρίς αυτό, το .filters (ως flex
+       item μέσα στο .toolbar) αρνείται να συρρικνωθεί κάτω από το
+       "φυσικό" του πλάτος και ξεχειλίζει πέρα από το δεξί padding του
+       toolbar, ακυρώνοντας το περιθώριο που κρατάει τα εικονίδια μακριά. */
+    .filters{ flex-wrap:wrap; min-width:0; max-width:100%; }
     .add-toggle{ flex-wrap:wrap; }
     /* Το "Κάθε διαμονή" + "Για να θυμάμαι" μένουν πάντα στην ίδια γραμμή σε κινητό. */
-    .filter-pair{ display:flex; gap:8px; width:100%; }
+    .filter-pair{ display:flex; gap:8px; width:100%; min-width:0; }
     .filter-pair select{ flex:1 1 0; min-width:0; }
   }
 
