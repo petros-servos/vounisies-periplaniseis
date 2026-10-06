@@ -419,7 +419,7 @@
     animation-delay: .1s;
   }
   .welcome-title{
-    font-size:21px; font-weight:800; color: var(--navy); text-align:center; margin:0;
+    font-size:26px; font-weight:800; color: var(--navy); text-align:center; margin:0;
     opacity:0;
     animation: welcomeFadeIn .5s ease forwards;
     animation-delay: .75s;
@@ -428,9 +428,9 @@
     display:grid; grid-template-columns:1fr 1fr; gap:12px; width:100%;
   }
   .welcome-name-btn{
-    padding:15px 10px; border-radius:14px; border:2px solid #f2971f;
-    background:#fff; color: var(--navy);
-    font-size:15.5px; font-weight:800; cursor:pointer;
+    padding:15px 10px; border-radius:14px; border:2px solid rgba(28,58,94,0.15);
+    background:#f2971f; color:#1c3a5e;
+    font-size:18px; font-weight:800; cursor:pointer;
     box-shadow: 0 6px 18px rgba(34,53,38,0.14);
     transition: transform .15s ease, background .15s ease, box-shadow .15s ease;
     opacity:0;
@@ -442,15 +442,14 @@
   .welcome-names .welcome-name-btn:nth-child(4){ animation-delay: 1.75s; }
   .welcome-names .welcome-name-btn:nth-child(5){ animation-delay: 1.9s; }
   .welcome-names .welcome-name-btn:nth-child(6){ animation-delay: 2.05s; }
-  html[data-theme="dark"] .welcome-name-btn{ border-color:#f2a33d; }
   .welcome-name-btn:hover{
-    background: color-mix(in srgb, #f2971f 12%, #fff);
+    background:#f5efe1;
     transform: translateY(-3px) scale(1.03);
     box-shadow: 0 10px 24px rgba(34,53,38,0.2);
   }
   .welcome-name-btn:active{ transform: translateY(0) scale(1); }
   @media (max-width:420px){
-    .welcome-title{ font-size:18px; }
+    .welcome-title{ font-size:22px; }
     .welcome-logo{ width:62vw; }
   }
   #chatModalOverlay .modal-box.chat-modal-box{
