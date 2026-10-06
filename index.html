@@ -171,32 +171,40 @@
   .wrap{ max-width:960px; margin:0 auto; padding: 32px 24px 80px; }
 
   /* ---- Notifications ---- */
+  /* Ίδιο ανοιχτόχρωμο μεταλλικό/inox gradient με τα κουμπιά και τα σχόλια,
+     στα στρογγυλά εικονίδια πάνω δεξιά. */
   .notif-wrap{ position:fixed; top:18px; right:18px; z-index:1000; display:flex; gap:10px; align-items:flex-start; }
-  .theme-toggle{
+  .theme-toggle, .admin-indicator, .notif-bell, .comment-notif-bell{
+    position:relative; overflow:hidden; isolation:isolate;
     width:46px; height:46px; border-radius:50%;
-    background: var(--surface); border:1px solid var(--border);
+    background: linear-gradient(160deg, #f4f6f8 0%, #dde2e7 28%, #aeb6bd 55%, #c9ced4 78%, #e3e7eb 100%);
+    border:1px solid rgba(255,255,255,.7);
     font-size:21.5px; display:flex; align-items:center; justify-content:center;
-    box-shadow: 0 6px 18px rgba(34,53,38,0.18);
+    box-shadow:
+      0 3px 10px rgba(30,36,44,0.22),
+      inset 0 1px 0 rgba(255,255,255,0.95),
+      inset 0 -8px 12px rgba(60,68,78,0.26);
     padding:0; cursor:pointer;
-    transition: transform .15s ease;
+    transition: transform .15s ease, box-shadow .2s ease, filter .2s ease, opacity .15s ease, border-color .15s ease;
   }
-  .theme-toggle:hover{ transform: rotate(-12deg); }
+  .theme-toggle::after, .admin-indicator::after, .notif-bell::after, .comment-notif-bell::after{
+    content:""; position:absolute; inset:0 0 45% 0; z-index:-1; border-radius:50% 50% 0 0;
+    background: linear-gradient(to bottom, rgba(255,255,255,.85), rgba(255,255,255,0));
+  }
+  .theme-toggle:hover{ transform: rotate(-12deg); filter: brightness(1.05); }
 
   .admin-indicator{
-    width:46px; height:46px; border-radius:50%;
-    background: var(--surface);
-    border:1px solid var(--border);
-    font-size:21.5px; display:flex; align-items:center; justify-content:center;
-    box-shadow: 0 6px 18px rgba(34,53,38,0.18);
-    padding:0; cursor:pointer;
-    opacity:.55;
-    transition: transform .15s ease, opacity .15s ease, background .15s ease, border-color .15s ease;
+    opacity:.6;
   }
-  .admin-indicator:hover{ transform: scale(1.08); opacity:.85; }
+  .admin-indicator:hover{ transform: scale(1.08); opacity:.9; filter: brightness(1.05); }
   .admin-indicator.is-admin{
     opacity:1;
-    background: color-mix(in srgb, var(--accent) 16%, var(--surface));
-    border:1px solid color-mix(in srgb, var(--accent) 55%, var(--border));
+    border-color: rgba(255,140,0,.65);
+    box-shadow:
+      0 3px 10px rgba(30,36,44,0.22),
+      inset 0 1px 0 rgba(255,255,255,0.95),
+      inset 0 -8px 12px rgba(60,68,78,0.26),
+      0 0 12px rgba(255,140,0,.5);
   }
 
   @media (max-width: 620px){
@@ -237,13 +245,7 @@
   .skeleton-card .sk-actions{ display:flex; flex-direction:column; gap:8px; }
   .skeleton-card .sk-btn{ height:32px; width:88px; border-radius:9px; }
 
-  .notif-bell{
-    width:46px; height:46px; border-radius:50%;
-    background: var(--surface); border:1px solid var(--border);
-    font-size:22.6px; display:flex; align-items:center; justify-content:center;
-    box-shadow: 0 6px 18px rgba(34,53,38,0.18);
-    position:relative; padding:0;
-  }
+  .notif-bell{ font-size:22.6px; }
   .notif-badge{
     position:absolute; top:-4px; right:-4px;
     background: var(--danger); color:#fff;
@@ -300,11 +302,13 @@
   .notif-dismiss:hover{ background: var(--danger-soft); color: var(--danger); }
 
   .comment-notif-bell{
-    width:46px; height:46px; border-radius:50%;
-    background: var(--surface); border:1px solid color-mix(in srgb, #2563a8 40%, var(--border));
-    font-size:20px; display:flex; align-items:center; justify-content:center;
-    box-shadow: 0 6px 18px rgba(34,53,38,0.18);
-    position:relative; padding:0;
+    font-size:20px;
+    border-color: rgba(43,130,230,.65);
+    box-shadow:
+      0 3px 10px rgba(30,36,44,0.22),
+      inset 0 1px 0 rgba(255,255,255,0.95),
+      inset 0 -8px 12px rgba(60,68,78,0.26),
+      0 0 12px rgba(43,130,230,.45);
   }
   .comment-notif-badge{
     position:absolute; top:-4px; right:-4px;
