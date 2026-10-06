@@ -692,21 +692,72 @@
   .btn-accent:hover{ opacity:0.92; }
   .btn-ghost{ background:transparent; border-color: var(--border); color: var(--text); }
   .btn-ghost:hover{ border-color: var(--accent); color: var(--accent); }
-  .btn-danger{ background: var(--danger); border-color: var(--danger); color:#ffffff; }
-  .btn-danger:hover{ opacity:0.88; }
-  .btn-edit{
-    background: var(--danger-soft);
-    border-color: var(--danger-soft);
-    color: var(--danger);
+  /* ---- Μεταλλικό / γυαλιστερό στυλ (chat, edit, delete) ---- */
+  .btn-chat, .btn-edit, .btn-danger{
+    position:relative; overflow:hidden; isolation:isolate;
+    background: linear-gradient(160deg, #5a6472 0%, #2a3038 55%, #15181d 100%);
+    border:1px solid rgba(255,255,255,0.18);
+    color:#f3f6fa;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.55);
+    box-shadow:
+      0 3px 10px rgba(0,0,0,0.38),
+      inset 0 1px 0 rgba(255,255,255,0.28),
+      inset 0 -10px 16px rgba(0,0,0,0.35);
+    transition: transform .15s ease, box-shadow .25s ease, filter .2s ease;
   }
-  .btn-edit:hover{ opacity:0.85; }
+  .btn-chat::after, .btn-edit::after, .btn-danger::after{
+    content:""; position:absolute; inset:0 0 45% 0; z-index:-1;
+    background: linear-gradient(to bottom, rgba(255,255,255,.38), rgba(255,255,255,0));
+  }
+  .btn-chat:hover, .btn-edit:hover, .btn-danger:hover{
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+  }
   .btn-chat{
-    position:relative;
-    background: #2563a8;
-    border-color: #2563a8;
-    color: #ffffff;
+    border-color: rgba(86,170,255,.6);
+    box-shadow:
+      0 3px 10px rgba(0,0,0,0.38),
+      inset 0 1px 0 rgba(255,255,255,0.28),
+      inset 0 -10px 16px rgba(0,0,0,0.35),
+      0 0 12px rgba(86,170,255,.5);
   }
-  .btn-chat:hover{ opacity:0.85; }
+  .btn-chat:hover{
+    box-shadow:
+      0 3px 10px rgba(0,0,0,0.38),
+      inset 0 1px 0 rgba(255,255,255,0.28),
+      inset 0 -10px 16px rgba(0,0,0,0.35),
+      0 0 20px rgba(86,170,255,.8);
+  }
+  .btn-edit{
+    border-color: rgba(255,122,148,.6);
+    box-shadow:
+      0 3px 10px rgba(0,0,0,0.38),
+      inset 0 1px 0 rgba(255,255,255,0.28),
+      inset 0 -10px 16px rgba(0,0,0,0.35),
+      0 0 12px rgba(255,122,148,.45);
+  }
+  .btn-edit:hover{
+    box-shadow:
+      0 3px 10px rgba(0,0,0,0.38),
+      inset 0 1px 0 rgba(255,255,255,0.28),
+      inset 0 -10px 16px rgba(0,0,0,0.35),
+      0 0 20px rgba(255,122,148,.75);
+  }
+  .btn-danger{
+    border-color: rgba(255,80,98,.65);
+    box-shadow:
+      0 3px 10px rgba(0,0,0,0.38),
+      inset 0 1px 0 rgba(255,255,255,0.28),
+      inset 0 -10px 16px rgba(0,0,0,0.35),
+      0 0 14px rgba(255,80,98,.55);
+  }
+  .btn-danger:hover{
+    box-shadow:
+      0 3px 10px rgba(0,0,0,0.38),
+      inset 0 1px 0 rgba(255,255,255,0.28),
+      inset 0 -10px 16px rgba(0,0,0,0.35),
+      0 0 22px rgba(255,80,98,.85);
+  }
   .btn-chat .chat-count-badge{
     display:inline-flex; align-items:center; justify-content:center;
     min-width:17px; height:17px; padding:0 4px;
@@ -715,6 +766,7 @@
     color:#fff;
     font-size:11px; font-weight:700;
     margin-left:5px;
+    box-shadow: 0 0 6px rgba(242,151,31,.7);
   }
   .btn-maybe{
     background:#dceaf7;
