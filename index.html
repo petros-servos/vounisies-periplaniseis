@@ -2537,6 +2537,7 @@
       <button class="resource-more-item" data-target="tabKatafygia" type="button">🛖 Ορειβατικά Καταφύγια</button>
       <button class="resource-more-item" data-target="tabWeather" type="button">🌤️ Πρόβλεψη Καιρού</button>
       <button class="resource-more-item" data-target="tabHikeCalc" type="button">🧮 Υπολογιστής Χρόνου Πεζοπορίας</button>
+      <button class="resource-more-item" id="pushEnableBtn" type="button">🔔 Ειδοποιήσεις στο κινητό</button>
     </div>
   </div>
 
@@ -5503,6 +5504,77 @@ initWelcomeOverlay_();
       if (target) target.click();
     });
   });
+})();
+
+// ---- Web Push notifications ----
+// Δημόσιο VAPID key (το ιδιωτικό μένει μόνο στο Supabase Edge Function, ποτέ εδώ).
+const VAPID_PUBLIC_KEY_ = 'BGsWTpmMJQhB_Obhp8H-d7SX0vqHmrurz3QEGgRv7nFxF_pEzc4y6i8hIttmP0LMns09iTruwzSyMSn6q1C56x8';
+
+function urlBase64ToUint8Array_(base64String){
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
+async function enablePushNotifications_(){
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)){
+    alert('Ο browser αυτός δεν υποστηρίζει ειδοποιήσεις push. Σε iPhone, πρόσθεσε πρώτα τη σελίδα στην Αρχική Οθόνη (Προσθήκη στην Αρχική Οθόνη) και δοκίμασε ξανά από εκεί.');
+    return;
+  }
+  if (!MY_NAME){
+    const name = await askName();
+    if (!name) return;
+    setMyName_(name);
+  }
+  try{
+    const reg = await navigator.serviceWorker.register('sw.js');
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted'){
+      showStatus('Δεν δόθηκε άδεια για ειδοποιήσεις. Μπορείς να την αλλάξεις από τις ρυθμίσεις του browser.');
+      return;
+    }
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub){
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array_(VAPID_PUBLIC_KEY_),
+      });
+    }
+    const subJson = sub.toJSON();
+    const { error } = await sb.from('push_subscriptions').upsert({
+      endpoint: subJson.endpoint,
+      p256dh: subJson.keys.p256dh,
+      auth: subJson.keys.auth,
+      name: MY_NAME,
+    }, { onConflict: 'endpoint' });
+    if (error){
+      showStatus('Η εγγραφή για ειδοποιήσεις απέτυχε. Δοκίμασε ξανά αργότερα.');
+      return;
+    }
+    const pushBtn = document.getElementById('pushEnableBtn');
+    if (pushBtn) pushBtn.textContent = '✅ Οι ειδοποιήσεις είναι ενεργές';
+    showStatus('Οι ειδοποιήσεις στο κινητό ενεργοποιήθηκαν!');
+  } catch(err){
+    showStatus('Κάτι πήγε στραβά με τις ειδοποιήσεις. Δοκίμασε ξανά.');
+  }
+}
+
+(function(){
+  const pushBtn = document.getElementById('pushEnableBtn');
+  if (!pushBtn) return;
+  pushBtn.addEventListener('click', enablePushNotifications_);
+  // Αν υπάρχει ήδη ενεργή συνδρομή σε αυτή τη συσκευή, δείξε το ανάλογα.
+  if ('serviceWorker' in navigator && 'PushManager' in window){
+    navigator.serviceWorker.getRegistration().then(reg => {
+      if (!reg) return;
+      reg.pushManager.getSubscription().then(sub => {
+        if (sub) pushBtn.textContent = '✅ Οι ειδοποιήσεις είναι ενεργές';
+      });
+    }).catch(() => {});
+  }
 })();
 
 load();
