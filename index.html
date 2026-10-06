@@ -489,19 +489,23 @@
     .chat-messages{ max-height:58vh; }
   }
   .chat-empty{ text-align:center; color: var(--text-dim); font-size:13.7px; padding:24px 8px; }
+  /* Ίδιο μεταλλικό/inox gradient με τα κουμπιά -- το περίγραμμα/glow αλλάζει
+     χρώμα ανά συμμετέχοντα μέσω της μεταβλητής --msg-color (inline per μήνυμα). */
   .chat-msg{
     max-width:82%;
     padding:9px 12px;
     border-radius:14px;
-    background: var(--surface-2);
-    border:1px solid var(--border);
-    border-left:4px solid var(--border);
+    background: linear-gradient(160deg, #f4f6f8 0%, #dde2e7 28%, #aeb6bd 55%, #c9ced4 78%, #e3e7eb 100%);
+    border:2px solid var(--msg-color, var(--border));
+    box-shadow:
+      0 3px 10px rgba(30,36,44,0.18),
+      inset 0 1px 0 rgba(255,255,255,0.9),
+      inset 0 -8px 12px rgba(60,68,78,0.22),
+      0 0 10px color-mix(in srgb, var(--msg-color, transparent) 45%, transparent);
     align-self:flex-start;
   }
   .chat-msg.own{
     align-self:flex-end;
-    background: color-mix(in srgb, var(--accent) 22%, var(--surface-2));
-    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
   }
   .chat-msg-head{
     display:flex; align-items:center; justify-content:space-between; gap:8px;
@@ -509,6 +513,7 @@
   }
   .chat-msg-name{
     font-family:Calibri, Carlito, sans-serif; font-weight:700; font-size:14.8px;
+    text-shadow: 0 1px 0 rgba(255,255,255,.6);
   }
   .chat-msg-tools{ display:flex; gap:4px; flex-shrink:0; }
   .chat-msg-tool{
@@ -516,14 +521,14 @@
     font-size:14px; padding:2px 3px; border-radius:6px;
     opacity:0.7;
   }
-  .chat-msg-tool:hover{ opacity:1; background: var(--surface); }
+  .chat-msg-tool:hover{ opacity:1; background: rgba(35,42,50,0.12); }
   .chat-msg-text{
-    font-size:16.5px; font-weight:600; line-height:1.48; color: var(--text);
+    font-size:16.5px; font-weight:600; line-height:1.48; color:#232a32;
     white-space:pre-wrap; word-break:break-word;
   }
   .chat-msg-text a{ color: var(--navy); text-decoration:underline; }
   .chat-msg-ts{
-    font-size:12px; color: var(--text-dim); margin-top:4px; text-align:right;
+    font-size:12px; color:#5b6572; margin-top:4px; text-align:right;
   }
   .chat-edit-input{
     width:100%; margin-bottom:6px !important;
@@ -4175,7 +4180,7 @@ function renderChatMessages_(comments){
       </div>
     ` : '';
     return `
-      <div class="chat-msg ${own ? 'own' : ''}" style="border-left-color:${color};" data-comment-id="${escapeAttr(c.ID)}">
+      <div class="chat-msg ${own ? 'own' : ''}" style="--msg-color:${color};" data-comment-id="${escapeAttr(c.ID)}">
         <div class="chat-msg-head">
           <span class="chat-msg-name" style="color:${color};">${escapeHtml(c['Όνομα'] || '')}</span>
           <span class="chat-msg-tools">
