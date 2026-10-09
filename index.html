@@ -2717,6 +2717,75 @@ function maybeLogVisit_(){
   const device = /Mobi|Android/i.test(navigator.userAgent) ? 'Κινητό' : 'Υπολογιστής';
   apiPost({ action:'logVisit', name: MY_NAME, device }).catch(() => { /* σιωπηλή αποτυχία -- δεν επηρεάζει τη χρήση της εφαρμογής */ });
 }
+
+// ---- Deep link από push notification (?exp=<id> ή ?chat=<id-εξόρμησης>) ----
+// Περιμένει να είναι ΚΑΙ γνωστό το όνομα (ίσως χρειαστεί η αναγκαστική
+// οθόνη επιλογής ονόματος πρώτα) ΚΑΙ φορτωμένα τα δεδομένα, πριν κάνει
+// οτιδήποτε -- γι' αυτό τα δύο flag παρακάτω αθροίζονται στο ίδιο σημείο.
+let DEEPLINK_PARAMS_ = null;
+try {
+  const dlParams = new URLSearchParams(location.search);
+  const dlExp = dlParams.get('exp');
+  const dlChat = dlParams.get('chat');
+  if (dlExp || dlChat) DEEPLINK_PARAMS_ = { exp: dlExp, chat: dlChat };
+} catch(e){ /* URLSearchParams μη διαθέσιμο -- αγνοούμε το deep link */ }
+let DEEPLINK_NAME_READY_ = false;
+let DEEPLINK_ROWS_READY_ = false;
+let DEEPLINK_HANDLED_ = false;
+
+function scrollAndHighlightCard_(id){
+  const card = document.getElementById('exp-' + id);
+  if (!card) return false;
+  (card.querySelector('.title') || card).scrollIntoView({ behavior:'smooth', block:'center' });
+  card.classList.add('just-added');
+  setTimeout(() => card.classList.remove('just-added'), 2300);
+  return true;
+}
+
+function tryHandleDeepLink_(){
+  if (DEEPLINK_HANDLED_ || !DEEPLINK_PARAMS_ || !DEEPLINK_NAME_READY_ || !DEEPLINK_ROWS_READY_) return;
+  DEEPLINK_HANDLED_ = true;
+  const { exp, chat } = DEEPLINK_PARAMS_;
+  // Καθαρίζουμε το ?exp=/?chat= από το URL ώστε ένα refresh ή ένα κοινό
+  // link να μην ξανακάνει το ίδιο scroll/άνοιγμα, και να μη μένουν
+  // μόνιμα καθαρισμένα τα φίλτρα του χρήστη.
+  try { history.replaceState(null, '', location.pathname + location.hash); } catch(e){}
+
+  if (chat){
+    const row = ROWS.find(r => String(r.ID) === String(chat));
+    if (!row){
+      showStatus('Η συζήτηση δεν βρέθηκε -- η εξόρμηση μπορεί να έχει διαγραφεί.');
+      return;
+    }
+    openChatModal(row.ID, row['Σχόλια'] || 'Εξόρμηση');
+    return;
+  }
+
+  if (exp){
+    const row = ROWS.find(r => String(r.ID) === String(exp));
+    if (!row){
+      showStatus('Η εξόρμηση δεν βρέθηκε -- μπορεί να έχει διαγραφεί.');
+      return;
+    }
+    let needsRefresh = false;
+    if (!row['Ημερομηνία'] && !ssFilterActive){
+      ssFilterActive = true;
+      ssFilterBtn.classList.add('active');
+      needsRefresh = true;
+    }
+    if (fMonth.value || fDuration.value || fStay.value || fSearch.value || fRemember.value){
+      fMonth.value = ''; fDuration.value = ''; fStay.value = ''; fSearch.value = ''; fRemember.value = '';
+      updateFilterStyles();
+      needsRefresh = true;
+    }
+    if (currentView !== 'list'){
+      setView('list'); // ήδη κάνει refreshView εσωτερικά
+    } else if (needsRefresh){
+      refreshView();
+    }
+    scrollAndHighlightCard_(row.ID);
+  }
+}
 let currentView = 'list'; // 'list' ή 'grid' -- πάντα ξεκινάει από 'list'
 let calDate = new Date(); calDate.setDate(1); calDate.setHours(0,0,0,0);
 const MONTHS_FULL_EL = ['Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος','Μάιος','Ιούνιος','Ιούλιος','Αύγουστος','Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος'];
@@ -3230,6 +3299,8 @@ async function load(){
     renderNotifs();
     renderSSNotifs();
     refreshCommentNotifs();
+    DEEPLINK_ROWS_READY_ = true;
+    tryHandleDeepLink_();
   } catch(err){
     showStatus('Δεν ήταν δυνατή η σύνδεση με το Supabase. Ελέγξτε τη σύνδεση στο internet και δοκιμάστε ξανά.');
     listArea.innerHTML = '';
@@ -5478,6 +5549,8 @@ function initWelcomeOverlay_(){
     // Το όνομα είναι ήδη γνωστό από προηγούμενη επίσκεψη σε αυτή τη συσκευή -- δεν ξαναρωτάμε.
     maybeLogVisit_();
     syncNotifStateFromServer_();
+    DEEPLINK_NAME_READY_ = true;
+    tryHandleDeepLink_();
     return;
   }
   overlay.classList.add('show');
@@ -5487,6 +5560,8 @@ function initWelcomeOverlay_(){
       overlay.classList.remove('show');
       maybeLogVisit_();
       syncNotifStateFromServer_();
+      DEEPLINK_NAME_READY_ = true;
+      tryHandleDeepLink_();
     }, { once:true });
   });
 }
