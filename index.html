@@ -121,6 +121,12 @@
     .hero-art{ object-position:62% 35%; }
     .hero-scrim{ background:linear-gradient(180deg, rgba(12,18,32,.55) 0%, rgba(12,18,32,.8) 45%, rgba(12,18,32,.88) 100%); }
   }
+  /* Υπολογιστής: ήπιο zoom out ώστε να φαίνονται περισσότεροι ορειβάτες (ίδιο ύψος hero) */
+  @media (min-width:621px){
+    .contour-bg, html[data-theme="dark"] .contour-bg{ background:#0c1220; }
+    .hero-art{ left:auto; right:0; top:-14%; width:min(92%,1180px); height:auto; object-fit:initial;
+      -webkit-mask-image:linear-gradient(to right, transparent 0%, #000 28%); mask-image:linear-gradient(to right, transparent 0%, #000 28%); }
+  }
   .hero{
     position:relative;
     max-width:960px;
