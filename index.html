@@ -543,6 +543,13 @@
     padding:9px 12px;
     border-radius:14px;
     background: linear-gradient(160deg, #f4f6f8 0%, #dde2e7 28%, #aeb6bd 55%, #c9ced4 78%, #e3e7eb 100%);
+    /* μεταλλικό φόντο βαμμένο με το χρώμα του συμμετέχοντα */
+    background: linear-gradient(160deg,
+      color-mix(in srgb, var(--msg-color, #aeb6bd) 18%, #f4f6f8) 0%,
+      color-mix(in srgb, var(--msg-color, #aeb6bd) 26%, #dde2e7) 28%,
+      color-mix(in srgb, var(--msg-color, #aeb6bd) 40%, #aeb6bd) 55%,
+      color-mix(in srgb, var(--msg-color, #aeb6bd) 26%, #c9ced4) 78%,
+      color-mix(in srgb, var(--msg-color, #aeb6bd) 16%, #e3e7eb) 100%);
     border:2px solid var(--msg-color, var(--border));
     box-shadow:
       0 3px 10px rgba(30,36,44,0.18),
@@ -4217,7 +4224,19 @@ function formatChatTime_(iso){
 // Κάθε συμμετέχων παίρνει ένα σταθερό χρώμα (με βάση το όνομά του), ώστε
 // τα σχόλιά του να ξεχωρίζουν οπτικά μέσα στο κους κους.
 const CHAT_NAME_PALETTE_ = ['#c9822f', '#3f7d4c', '#7f93d6', '#9c8fe0', '#cc5b6f', '#2f9e8f', '#b8860b', '#6a5acd'];
+// Σταθερό, ξεχωριστό χρώμα για κάθε μέλος της παρέας (ώστε να μη συμπίπτουν).
+// Όποιο όνομα δεν υπάρχει εδώ παίρνει χρώμα από την παλέτα με βάση το όνομα.
+const CHAT_NAME_COLORS_ = {
+  'Πέτρος': '#e07a1f',
+  'Κυριάκος': '#2f7fd1',
+  'Ελένη': '#2e9e5b',
+  'Άρτεμις - Ντιάνα': '#c2448f',
+  'Σοφία': '#8a5cd6',
+  'Εύη': '#c9a227',
+};
 function colorForName_(name){
+  const fixed = CHAT_NAME_COLORS_[(name || '').trim()];
+  if (fixed) return fixed;
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
   return CHAT_NAME_PALETTE_[hash % CHAT_NAME_PALETTE_.length];
