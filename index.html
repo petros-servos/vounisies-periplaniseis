@@ -5558,6 +5558,10 @@ function initWelcomeOverlay_(){
     btn.addEventListener('click', () => {
       setMyName_(btn.dataset.name);
       overlay.classList.remove('show');
+      // Οι κάρτες μπορεί να έχουν ήδη σχεδιαστεί πριν επιλεγεί όνομα (χωρίς
+      // να ξέρουν ποιος είναι ο χρήστης) -- τις ξανασχεδιάζουμε ώστε το
+      // "Συμμετοχή" να δείχνει αμέσως τη δική του επιλογή, χωρίς refresh.
+      if (ROWS.length) refreshView();
       maybeLogVisit_();
       syncNotifStateFromServer_();
       DEEPLINK_NAME_READY_ = true;
