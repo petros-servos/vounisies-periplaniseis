@@ -1437,6 +1437,31 @@
     display:flex; align-items:center; gap:8px;
   }
   .stats-table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .stats-upcoming{ border:1px solid var(--border); border-radius:12px; padding:12px 14px; margin-bottom:12px; background: var(--surface-2); }
+  .stats-upcoming.soon{ border-color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent); }
+  .stats-upcoming-head{ display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
+  .stats-upcoming-title{ font-weight:700; font-size:16px; color: var(--text); }
+  .stats-upcoming-when{ font-size:13px; color: var(--text-dim); }
+  .stats-upcoming-row{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:5px 0; }
+  .stats-upcoming-row .lbl{ font-size:13px; color: var(--text-dim); min-width:150px; }
+  .stats-tag[style*="--tag-color"]{ border-color: var(--tag-color); color: var(--tag-color); font-weight:700; }
+  .stats-tag.muted{ opacity:.55; }
+  .stats-tag.warn{ background: color-mix(in srgb, var(--accent) 18%, transparent); }
+  .stats-alert{ margin-top:8px; font-size:13.5px; font-weight:600; color: var(--accent); }
+  .stats-name-dot{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+  .stats-members td{ white-space:nowrap; }
+  .stats-members{ min-width:980px !important; }
+  .stats-absent{ color:#c0392b; font-weight:600; }
+  .stats-off{ color: var(--text-dim); font-size:12.5px; }
+  .stats-stale td{ background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .stats-action-member{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-bottom:8px; }
+  .stats-action-member b{ min-width:120px; }
+  .stats-activity-head{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px; }
+  .stats-activity-head h4{ margin:0 !important; }
+  .stats-activity-head select{ max-width:200px; }
+  .stats-activity-list{ max-height:340px; overflow-y:auto; }
+  .stats-activity-item .what{ color: var(--text-dim); }
+  @media (max-width:620px){ .stats-upcoming-row .lbl{ min-width:100%; } .stats-action-member b{ min-width:100%; } }
   .stats-table-wrap .stats-table{ min-width:560px; }
   .stats-mini{ font-size:12px; color: var(--text-dim); white-space:nowrap; }
   .stats-streak-badge{
@@ -2738,7 +2763,87 @@ function maybeLogVisit_(){
   if (VISIT_LOGGED_THIS_SESSION_ || !MY_NAME) return;
   VISIT_LOGGED_THIS_SESSION_ = true;
   const device = /Mobi|Android/i.test(navigator.userAgent) ? 'Κινητό' : 'Υπολογιστής';
-  apiPost({ action:'logVisit', name: MY_NAME, device }).catch(() => { /* σιωπηλή αποτυχία -- δεν επηρεάζει τη χρήση της εφαρμογής */ });
+  detectBrowser_().then(info => {
+    apiPost({ action:'logVisit', name: MY_NAME, device, browser: info.browser, os: info.os, sessionId: SESSION_ID_ })
+      .catch(() => { /* σιωπηλή αποτυχία -- δεν επηρεάζει τη χρήση της εφαρμογής */ });
+  });
+}
+
+// ---- Καταγραφή δραστηριότητας (μόνο για τα στατιστικά του διαχειριστή) ----
+// Κάθε άνοιγμα της εφαρμογής = ένα "session". Καταγράφουμε browser/λειτουργικό,
+// τον χρόνο που η σελίδα ήταν ΟΡΑΤΗ (όχι όσο είναι στο background) και βασικές
+// ενέργειες (άνοιγμα chat, συμμετοχή, φίλτρα κλπ). Ποτέ IP ή τοποθεσία.
+const SESSION_ID_ = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+  : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+
+async function detectBrowser_(){
+  const ua = navigator.userAgent || '';
+  let browser = 'Άλλος';
+  try { if (navigator.brave && await navigator.brave.isBrave()) browser = 'Brave'; } catch(e){}
+  if (browser === 'Άλλος'){
+    if (/SamsungBrowser/i.test(ua)) browser = 'Samsung Internet';
+    else if (/EdgA?\/|Edg\//.test(ua)) browser = 'Edge';
+    else if (/OPR\/|Opera/.test(ua)) browser = 'Opera';
+    else if (/Firefox\/|FxiOS/.test(ua)) browser = 'Firefox';
+    else if (/CriOS|Chrome\//.test(ua)) browser = 'Chrome';
+    else if (/Safari\//.test(ua)) browser = 'Safari';
+  }
+  let installed = false;
+  try { installed = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch(e){}
+  if (installed) browser += ' (εφαρμογή)';
+  let os = 'Άλλο';
+  if (/Android/i.test(ua)) os = 'Android';
+  else if (/iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) os = 'iOS';
+  else if (/Windows/i.test(ua)) os = 'Windows';
+  else if (/Mac OS X|Macintosh/i.test(ua)) os = 'macOS';
+  else if (/Linux/i.test(ua)) os = 'Linux';
+  return { browser, os };
+}
+
+// Χρόνος παραμονής: μετράμε μόνο όσο η σελίδα είναι ορατή.
+let ACTIVE_MS_ = 0;
+let ACTIVE_SINCE_ = document.visibilityState === 'visible' ? Date.now() : null;
+function activeSeconds_(){
+  return Math.round((ACTIVE_MS_ + (ACTIVE_SINCE_ ? Date.now() - ACTIVE_SINCE_ : 0)) / 1000);
+}
+function flushVisitDuration_(useKeepalive){
+  if (!VISIT_LOGGED_THIS_SESSION_ || !MY_NAME) return;
+  const body = { p_session: SESSION_ID_, p_seconds: activeSeconds_() };
+  if (useKeepalive){
+    try {
+      fetch(SUPABASE_URL + '/rest/v1/rpc/touch_visit', {
+        method: 'POST', keepalive: true,
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+        body: JSON.stringify(body),
+      }).catch(() => {});
+    } catch(e){}
+  } else {
+    sb.rpc('touch_visit', body).then(() => {}, () => {});
+  }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden'){
+    if (ACTIVE_SINCE_){ ACTIVE_MS_ += Date.now() - ACTIVE_SINCE_; ACTIVE_SINCE_ = null; }
+    flushVisitDuration_(true);
+  } else if (!ACTIVE_SINCE_){
+    ACTIVE_SINCE_ = Date.now();
+  }
+});
+window.addEventListener('pagehide', () => flushVisitDuration_(true));
+setInterval(() => { if (document.visibilityState === 'visible') flushVisitDuration_(false); }, 30000);
+
+// Καταγραφή μιας ενέργειας. Σιωπηλή αποτυχία: αν ο πίνακας δεν υπάρχει ακόμα
+// ή δεν υπάρχει σύνδεση, η εφαρμογή συνεχίζει κανονικά.
+function track_(event, detail){
+  if (!MY_NAME) return;
+  try {
+    sb.from('activity_events').insert({ name: MY_NAME, session_id: SESSION_ID_, event, detail: detail || null })
+      .then(() => {}, () => {});
+  } catch(e){}
+}
+function expTitle_(id){
+  const r = ROWS.find(x => String(x.ID) === String(id));
+  return r ? (r['Σχόλια'] || 'Εξόρμηση') : '';
 }
 
 // ---- Deep link από push notification (?exp=<id> ή ?chat=<id-εξόρμησης>) ----
@@ -2769,6 +2874,7 @@ function tryHandleDeepLink_(){
   if (DEEPLINK_HANDLED_ || !DEEPLINK_PARAMS_ || !DEEPLINK_NAME_READY_ || !DEEPLINK_ROWS_READY_) return;
   DEEPLINK_HANDLED_ = true;
   const { exp, chat } = DEEPLINK_PARAMS_;
+  track_('open_from_push', { type: chat ? 'chat' : 'expedition', id: chat || exp, title: expTitle_(chat || exp) });
   // Καθαρίζουμε το ?exp=/?chat= από το URL ώστε ένα refresh ή ένα κοινό
   // link να μην ξανακάνει το ίδιο scroll/άνοιγμα, και να μη μένουν
   // μόνιμα καθαρισμένα τα φίλτρα του χρήστη.
@@ -3056,12 +3162,31 @@ async function logVisitRow_(data){
   const name = (data.name || '').toString().trim();
   if (!name) return { ok: false, error: 'missing name' };
   const device = (data.device || '').toString().trim() || 'Άγνωστο';
-  const { error } = await sb.from('visits').insert({ name, device });
+  const extended = { name, device, browser: data.browser || null, os: data.os || null, session_id: data.sessionId || null, last_seen: new Date().toISOString() };
+  let { error } = await sb.from('visits').insert(extended);
+  // Αν δεν έχει τρέξει ακόμα το activity_tracking.sql (λείπουν οι νέες στήλες),
+  // καταγράφουμε την επίσκεψη με τα παλιά πεδία ώστε να μη χάνεται.
+  if (error) ({ error } = await sb.from('visits').insert({ name, device }));
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
 
+// Καταγράφει (για τα στατιστικά) κάθε επιτυχημένη αλλαγή δεδομένων.
 async function apiPost(payload){
+  const res = await apiPostRaw_(payload);
+  if (res && res.ok){
+    const a = payload.action;
+    if (a === 'add') track_('add_expedition', { title: payload.comment || '' });
+    else if (a === 'update') track_('edit_expedition', { id: payload.id, title: payload.comment || expTitle_(payload.id) });
+    else if (a === 'delete') track_('delete_expedition', { id: payload.id, title: expTitle_(payload.id) });
+    else if (a === 'addComment') track_('comment', { id: payload.expeditionId, title: expTitle_(payload.expeditionId), reply: !!payload.replyToId });
+    else if (a === 'updateComment') track_('edit_comment', {});
+    else if (a === 'deleteComment') track_('delete_comment', {});
+  }
+  return res;
+}
+
+async function apiPostRaw_(payload){
   try {
     switch (payload.action) {
       case 'add': return await addExpedition_(payload);
@@ -3259,6 +3384,95 @@ async function computeAdminStats_(){
     comment: readRateOf_(commentPoolIds, readUnion.comment),
   };
 
+  // ---------- Νέα δομή στατιστικών ----------
+  const sinceEvents = new Date(); sinceEvents.setDate(sinceEvents.getDate() - 90);
+  let eventsRaw = [];
+  try {
+    const { data, error } = await sb.from('activity_events').select('*')
+      .gte('created_at', sinceEvents.toISOString()).order('created_at', { ascending: false }).limit(3000);
+    if (!error && data) eventsRaw = data;
+  } catch(e){}
+  let pushRaw = null;
+  try {
+    const { data, error } = await sb.rpc('admin_push_summary');
+    if (!error && data) pushRaw = data;
+  } catch(e){}
+  const pushByName = {};
+  (pushRaw || []).forEach(p => { pushByName[(p.name || '').trim()] = p; });
+
+  const todayD = new Date(); todayD.setHours(0, 0, 0, 0);
+  const splitNames_ = (v) => (v || '').split(',').map(x => x.trim()).filter(Boolean);
+  const dayDiff_ = (d) => Math.round((d - todayD) / 86400000);
+
+  // 1) Επόμενες εξορμήσεις: ποιος έρχεται / το σκέφτεται / δεν απάντησε
+  const upcoming = rows.filter(r => r['Ημερομηνία'] && !isNaN(new Date(r['Ημερομηνία'])) && new Date(r['Ημερομηνία']) >= todayD)
+    .sort((a, b) => new Date(a['Ημερομηνία']) - new Date(b['Ημερομηνία']))
+    .map(r => {
+      const inL = splitNames_(r['Ενδιαφερόμενοι']), maybeL = splitNames_(r['Σκέφτονται']);
+      return {
+        id: r.ID, title: r['Σχόλια'] || 'Εξόρμηση', date: r['Ημερομηνία'],
+        daysUntil: dayDiff_(new Date(r['Ημερομηνία'])),
+        inList: inL, maybeList: maybeL,
+        noReply: KNOWN_MEMBERS_.filter(n => !inL.includes(n) && !maybeL.includes(n)),
+        comments: commentCountsPre[r.ID] || 0,
+      };
+    });
+
+  // 2) Προτάσεις Summit Squad σε αναμονή (χωρίς ημερομηνία)
+  const createdById = {};
+  (expRaw || []).forEach(e => { createdById[e.id] = e.created_at || e.notif_time; });
+  const pending = rows.filter(r => !r['Ημερομηνία']).map(r => {
+    const c = new Date(createdById[r.ID] || r['Χρόνος Ειδοποίησης']);
+    return {
+      id: r.ID, title: r['Σχόλια'] || 'Εξόρμηση', proposer: r['Όνομα'] || '',
+      ageDays: isNaN(c) ? null : Math.max(0, -dayDiff_(new Date(c.getFullYear(), c.getMonth(), c.getDate()))),
+      inCount: splitNames_(r['Ενδιαφερόμενοι']).length, maybeCount: splitNames_(r['Σκέφτονται']).length,
+      comments: commentCountsPre[r.ID] || 0,
+    };
+  }).sort((a, b) => (b.ageDays || 0) - (a.ageDays || 0));
+
+  // 3) Μέλη: συμμετοχές, χρόνος παραμονής, browser, push
+  const memberNames = [...new Set([...KNOWN_MEMBERS_, ...Object.keys(people)])];
+  const pastRows = rows.filter(r => r['Ημερομηνία'] && new Date(r['Ημερομηνία']) < todayD);
+  const members = memberNames.map(name => {
+    const p = people[name] || { comments: 0, proposed: 0, visits: 0, devices: {}, lastVisitTs: null };
+    const myVisits = (visitsRaw || []).filter(v => (v.name || '').trim() === name);
+    const durs = myVisits.map(v => v.duration_seconds || 0).filter(x => x > 0);
+    const browsers = {};
+    myVisits.forEach(v => { if (v.browser) { const k = v.browser + (v.os ? ' · ' + v.os : ''); browsers[k] = (browsers[k] || 0) + 1; } });
+    const lastV = p.lastVisitTs ? new Date(p.lastVisitTs) : null;
+    return {
+      name,
+      attended: pastRows.filter(r => splitNames_(r['Ενδιαφερόμενοι']).includes(name)).length,
+      proposed: p.proposed || 0, comments: p.comments || 0, visits: p.visits || 0,
+      devices: p.devices || {},
+      browsers,
+      avgDuration: durs.length ? Math.round(durs.reduce((a, b) => a + b, 0) / durs.length) : null,
+      totalDuration: durs.reduce((a, b) => a + b, 0),
+      push: pushByName[name] || null,
+      lastVisitTs: p.lastVisitTs,
+      absentDays: lastV ? Math.floor((Date.now() - lastV) / 86400000) : null,
+      actions: eventsRaw.filter(e => (e.name || '').trim() === name).length,
+    };
+  });
+
+  // 4) Ενέργειες
+  const eventCountsByMember = {};
+  eventsRaw.forEach(e => {
+    const n = (e.name || '').trim(); if (!n) return;
+    eventCountsByMember[n] = eventCountsByMember[n] || {};
+    eventCountsByMember[n][e.event] = (eventCountsByMember[n][e.event] || 0) + 1;
+  });
+  const allDurs = (visitsRaw || []).map(v => v.duration_seconds || 0).filter(x => x > 0);
+  const extra = {
+    upcoming, pending, members,
+    events: eventsRaw,
+    eventCountsByMember,
+    trackingReady: eventsRaw.length > 0 || (visitsRaw || []).some(v => 'session_id' in v),
+    pushAvailable: pushRaw !== null,
+    avgDurationAll: allDurs.length ? Math.round(allDurs.reduce((a, b) => a + b, 0) / allDurs.length) : null,
+  };
+
   return {
     totalExpeditions: rows.length,
     totalComments: comments.length,
@@ -3283,6 +3497,7 @@ async function computeAdminStats_(){
     avgCommentsPerExpedition: avgCommentsPerExpedition,
     avgInterestedPerExpedition: avgInterestedPerExpedition,
     notifReadStats: notifReadStats,
+    ...extra,
   };
 }
 
@@ -4180,6 +4395,7 @@ async function onRSVPChange(id, value){
   if (!row) return;
   const wasIn = MY_NAME && (row['Ενδιαφερόμενοι'] || '').split(',').map(s=>s.trim()).includes(MY_NAME);
   const wasMaybe = MY_NAME && (row['Σκέφτονται'] || '').split(',').map(s=>s.trim()).includes(MY_NAME);
+  track_('rsvp', { id, title: row['Σχόλια'] || 'Εξόρμηση', value: value || 'none', from: wasIn ? 'in' : (wasMaybe ? 'maybe' : 'none') });
   if (value === 'in'){
     if (wasMaybe) await onMaybe(id);
     if (!wasIn) await onInterest(id);
@@ -4250,6 +4466,7 @@ async function openChatModal(expeditionId, title){
     maybeLogVisit_();
   }
   CHAT_EXPEDITION_ID = expeditionId;
+  track_('open_chat', { id: expeditionId, title: title || expTitle_(expeditionId) });
   document.getElementById('chatModalTitle').textContent = title || '';
   document.getElementById('chatMessages').innerHTML = '<div class="chat-empty">Φόρτωση...</div>';
   // Εξαναγκάζει πλήρες render στο επόμενο loadChatMessages_, ακόμα κι αν
@@ -5268,58 +5485,123 @@ document.getElementById('adminStatsClose').addEventListener('click', () => {
   document.getElementById('adminStatsOverlay').classList.remove('show');
 });
 
+const EVENT_LABELS_ = {
+  open_chat: '💬 Άνοιξε το Κους Κους',
+  comment: '✍️ Έγραψε σχόλιο',
+  edit_comment: '✏️ Διόρθωσε σχόλιο',
+  delete_comment: '🗑️ Διέγραψε σχόλιο',
+  rsvp: '🥾 Άλλαξε συμμετοχή',
+  add_expedition: '➕ Πρόσθεσε εξόρμηση',
+  edit_expedition: '📝 Επεξεργάστηκε εξόρμηση',
+  delete_expedition: '❌ Διέγραψε εξόρμηση',
+  open_link: '🔗 Άνοιξε το link εξόρμησης',
+  open_resource: '📚 Άνοιξε ενότητα',
+  open_map: '🗺️ Άνοιξε χάρτη καταφυγίου',
+  filter: '🔎 Χρησιμοποίησε φίλτρο',
+  search: '🔍 Αναζήτησε',
+  view: '🗓️ Άλλαξε προβολή',
+  ss_filter: '🎒 Φίλτρο Summit Squad',
+  open_notifications: '🔔 Άνοιξε ειδοποιήσεις',
+  enable_push: '📲 Ενεργοποίηση push',
+  open_add_form: '🆕 Άνοιξε φόρμα πρότασης',
+  refresh: '↻ Ανανέωση',
+  theme: '🌓 Άλλαξε θέμα',
+  open_from_push: '📨 Μπήκε από ειδοποίηση',
+  open_stats: '📊 Άνοιξε στατιστικά',
+};
+const RSVP_LABELS_ = { in: 'Θα έρθω', maybe: 'Το σκέφτομαι', none: 'Καμία' };
+
+function formatDuration_(sec){
+  if (sec == null) return '—';
+  if (sec < 60) return `${sec}''`;
+  const m = Math.floor(sec / 60), s = sec % 60;
+  if (m < 60) return s ? `${m}' ${s}''` : `${m}'`;
+  const h = Math.floor(m / 60);
+  return `${h}ω ${m % 60}'`;
+}
+function eventDetailText_(e){
+  const d = e.detail || {};
+  switch (e.event){
+    case 'rsvp': return `${d.title || ''}: ${RSVP_LABELS_[d.from] || ''} → ${RSVP_LABELS_[d.value] || ''}`;
+    case 'filter': return `${d.filter || ''}: ${d.value || ''}`;
+    case 'search': return `«${d.q || ''}»`;
+    case 'view': return d.view || '';
+    case 'open_resource': return d.name || '';
+    case 'open_map': return d.name || '';
+    case 'open_notifications': return d.type || '';
+    case 'open_from_push': return `${d.type === 'chat' ? 'Σχόλιο' : 'Εξόρμηση'}${d.title ? ' — ' + d.title : ''}`;
+    case 'comment': return `${d.title || ''}${d.reply ? ' (απάντηση)' : ''}`;
+    default: return d.title || '';
+  }
+}
+
 function renderAdminStats_(stats){
-  const peopleRows = stats.people.map(p => {
-    const deviceLabel = Object.entries(p.devices || {})
-      .map(([d, c]) => `${d === 'Κινητό' ? '📱' : (d === 'Υπολογιστής' ? '💻' : '❓')} ${c}`)
-      .join(' · ') || '—';
+  const fmtDate_ = (iso) => {
+    const d = new Date(iso); if (isNaN(d)) return '';
+    return `${DAYS_EL[d.getDay()].slice(0, 3)} ${d.getDate()}/${d.getMonth() + 1}`;
+  };
+  const nameTag_ = (n, cls) => `<span class="stats-tag ${cls || ''}" style="--tag-color:${colorForName_(n)}">${escapeHtml(n)}</span>`;
+
+  // ---- 1. Επόμενες εξορμήσεις ----
+  const upcomingHtml = stats.upcoming.length ? stats.upcoming.map(u => {
+    const soon = u.daysUntil <= 7;
+    const when = u.daysUntil === 0 ? 'σήμερα' : (u.daysUntil === 1 ? 'αύριο' : `σε ${u.daysUntil} μέρες`);
     return `
-    <tr>
-      <td>${escapeHtml(p.name)}</td>
-      <td>${p.comments}</td>
-      <td>${p.proposed}</td>
-      <td>${p.interested}</td>
-      <td>${p.maybe}</td>
-      <td>${p.visits || 0}</td>
-      <td class="stats-mini">${deviceLabel}</td>
-      <td>${p.longestStreak ? `<span class="stats-streak-badge">${p.longestStreak} ${p.longestStreak === 1 ? 'μέρα' : 'μέρες'}</span>` : '—'}</td>
-      <td>${p.lastVisitTs ? formatNotifTime_(p.lastVisitTs) : '—'}</td>
-      <td>${p.lastCommentTs ? formatNotifTime_(p.lastCommentTs) : '—'}</td>
-    </tr>
-  `;
+      <div class="stats-upcoming ${soon ? 'soon' : ''}">
+        <div class="stats-upcoming-head">
+          <span class="stats-upcoming-title">${escapeHtml(u.title)}</span>
+          <span class="stats-upcoming-when">${fmtDate_(u.date)} · ${when}</span>
+        </div>
+        <div class="stats-upcoming-row"><span class="lbl">🥾 Έρχονται (${u.inList.length})</span>${u.inList.map(n => nameTag_(n)).join('') || '<span class="stats-note">κανείς ακόμα</span>'}</div>
+        <div class="stats-upcoming-row"><span class="lbl">💭 Το σκέφτονται (${u.maybeList.length})</span>${u.maybeList.map(n => nameTag_(n, soon ? 'warn' : '')).join('') || '<span class="stats-note">—</span>'}</div>
+        <div class="stats-upcoming-row"><span class="lbl">❔ Δεν απάντησαν (${u.noReply.length})</span>${u.noReply.map(n => nameTag_(n, 'muted')).join('') || '<span class="stats-note">όλοι απάντησαν 🎉</span>'}</div>
+        ${soon && u.maybeList.length ? `<div class="stats-alert">⏰ Πλησιάζει — ${u.maybeList.length === 1 ? 'ένα άτομο είναι' : u.maybeList.length + ' άτομα είναι'} ακόμα στο «το σκέφτομαι».</div>` : ''}
+      </div>`;
+  }).join('') : '<div class="stats-note">Δεν υπάρχει προγραμματισμένη εξόρμηση με ημερομηνία.</div>';
+
+  // ---- 2. Μέλη ----
+  const memberRows = stats.members.map(m => {
+    const devices = Object.entries(m.devices || {})
+      .map(([d, c]) => `${d === 'Κινητό' ? '📱' : (d === 'Υπολογιστής' ? '💻' : '❓')} ${c}`).join(' · ') || '—';
+    const browsers = Object.entries(m.browsers || {}).sort((a, b) => b[1] - a[1])
+      .map(([b, c]) => `${escapeHtml(b)}${Object.keys(m.browsers).length > 1 ? ` (${c})` : ''}`).join('<br>') || '—';
+    const push = m.push ? `🔔 ${m.push.devices}` : (stats.pushAvailable ? '<span class="stats-off">όχι</span>' : '—');
+    const absent = m.absentDays != null && m.absentDays > 14;
+    return `
+      <tr>
+        <td><span class="stats-name-dot" style="background:${colorForName_(m.name)}"></span>${escapeHtml(m.name)}</td>
+        <td>${m.attended}</td>
+        <td>${m.proposed}</td>
+        <td>${m.comments}</td>
+        <td>${m.visits}</td>
+        <td>${formatDuration_(m.avgDuration)}</td>
+        <td>${m.totalDuration ? formatDuration_(m.totalDuration) : '—'}</td>
+        <td>${m.actions}</td>
+        <td class="stats-mini">${devices}</td>
+        <td class="stats-mini">${browsers}</td>
+        <td>${push}</td>
+        <td class="${absent ? 'stats-absent' : ''}">${m.lastVisitTs ? formatNotifTime_(m.lastVisitTs) : '—'}${absent ? ' ⚠️' : ''}</td>
+      </tr>`;
   }).join('');
 
-  const expeditionRows = stats.expeditions.slice(0, 10).map(ex => `
-    <tr>
-      <td>${escapeHtml(ex.title)}${!ex.hasDate ? ' 🎒' : ''}</td>
-      <td>${ex.interested}</td>
-      <td>${ex.maybe}</td>
-      <td>${ex.comments}</td>
-    </tr>
-  `).join('');
+  // ---- 3. Ενέργειες ----
+  const memberOptions = stats.members.map(m => `<option value="${escapeAttr(m.name)}">${escapeHtml(m.name)}</option>`).join('');
+  const actionSummaryHtml = stats.members.filter(m => stats.eventCountsByMember[m.name]).map(m => {
+    const counts = Object.entries(stats.eventCountsByMember[m.name]).sort((a, b) => b[1] - a[1]);
+    return `<div class="stats-action-member"><b style="color:${colorForName_(m.name)}">${escapeHtml(m.name)}</b>
+      ${counts.map(([ev, c]) => `<span class="stats-tag">${escapeHtml(EVENT_LABELS_[ev] || ev)} · ${c}</span>`).join('')}</div>`;
+  }).join('') || `<div class="stats-note">${stats.trackingReady ? 'Δεν έχουν καταγραφεί ενέργειες ακόμα.' : 'Η καταγραφή ενεργειών ξεκινά μόλις τρέξει το activity_tracking.sql στο Supabase.'}</div>`;
 
-  const activityItems = stats.recentActivity.map(a => `
-    <div class="stats-activity-item">
-      <span class="who">${escapeHtml(a.name || '')}</span> — ${escapeHtml(a.text || '')}
-      <span class="where">${escapeHtml(a.expeditionTitle || '')} · ${formatNotifTime_(a.ts)}</span>
-    </div>
-  `).join('');
+  // ---- 4. Προτάσεις σε αναμονή ----
+  const pendingRows = stats.pending.map(p => `
+    <tr class="${p.ageDays != null && p.ageDays > 30 ? 'stats-stale' : ''}">
+      <td>${escapeHtml(p.title)}</td>
+      <td>${escapeHtml(p.proposer || '—')}</td>
+      <td>${p.ageDays == null ? '—' : p.ageDays + ' μέρ.'}${p.ageDays != null && p.ageDays > 30 ? ' ⏳' : ''}</td>
+      <td>${p.inCount}</td><td>${p.maybeCount}</td><td>${p.comments}</td>
+    </tr>`).join('');
 
-  const inactiveTags = stats.inactiveMembers.length
-    ? stats.inactiveMembers.map(n => `<span class="stats-tag">${escapeHtml(n)}</span>`).join('')
-    : '<span class="stats-note">Όλα τα μέλη του ρόστερ έχουν κάποια δραστηριότητα 🎉</span>';
-
-  const zeroExpTags = stats.zeroEngagementExpeditions.length
-    ? stats.zeroEngagementExpeditions.map(ex => `<span class="stats-tag">${escapeHtml(ex.title)}${!ex.hasDate ? ' 🎒' : ''}</span>`).join('')
-    : '<span class="stats-note">Όλες οι εξορμήσεις έχουν κάποια απήχηση 🎉</span>';
-
-  const deviceTags = Object.entries(stats.deviceCounts).length
-    ? Object.entries(stats.deviceCounts).map(([device, count]) => `<span class="stats-tag">${escapeHtml(device)}: ${count}</span>`).join('')
-    : '<span class="stats-note">Καμία επίσκεψη έχει καταγραφεί ακόμα.</span>';
-
-  const durationRows = Object.entries(stats.durationCounts).map(([k, v]) => `<tr><td>${escapeHtml(k)}</td><td>${v}</td></tr>`).join('');
-  const stayRows = Object.entries(stats.stayCounts).map(([k, v]) => `<tr><td>${escapeHtml(k)}</td><td>${v}</td></tr>`).join('');
-
+  // ---- 5. Γενικά ----
   const maxVisits = Math.max(1, ...stats.visitsPerDay.map(d => d.count));
   const visitsBarsHtml = stats.visitsPerDay.map(d => {
     const pct = Math.max(Math.round((d.count / maxVisits) * 100), d.count > 0 ? 6 : 2);
@@ -5327,148 +5609,82 @@ function renderAdminStats_(stats){
   }).join('');
   const firstDay = stats.visitsPerDay[0] ? stats.visitsPerDay[0].date : '';
   const lastDay = stats.visitsPerDay[stats.visitsPerDay.length - 1] ? stats.visitsPerDay[stats.visitsPerDay.length - 1].date : '';
-
-  // ---- Επισκέψεις ανά ημέρα εβδομάδας ----
-  const WEEKDAY_LABELS_ = ['Κυρ', 'Δευ', 'Τρί', 'Τετ', 'Πέμ', 'Παρ', 'Σάβ'];
-  const maxWeekday = Math.max(1, ...(stats.weekdayCounts || []));
-  const weekdayBarsHtml = (stats.weekdayCounts || []).map((c, i) => {
-    const pct = Math.max(Math.round((c / maxWeekday) * 100), c > 0 ? 6 : 2);
-    return `<div class="stats-weekday-bar-wrap"><div class="stats-weekday-bar" style="height:${pct}%" title="${WEEKDAY_LABELS_[i]}: ${c} επισκέψεις"></div></div>`;
-  }).join('');
-  const weekdayLabelsHtml = WEEKDAY_LABELS_.map(l => `<span>${l}</span>`).join('');
-
-  // ---- Εποχικότητα εξορμήσεων ανά μήνα ----
-  const MONTH_SHORT_ = ['Ιαν','Φεβ','Μάρ','Απρ','Μάι','Ιούν','Ιούλ','Αύγ','Σεπ','Οκτ','Νοέ','Δεκ'];
-  const monthData = stats.monthCounts || [];
-  const maxMonth = Math.max(1, ...monthData.map(m => m.count));
-  const monthBarsHtml = monthData.map((m, i) => {
-    const pct = Math.max(Math.round((m.count / maxMonth) * 100), m.count > 0 ? 6 : 2);
-    return `<div class="stats-month-bar-wrap"><div class="stats-month-bar" style="height:${pct}%" title="${m.month}: ${m.count} εξορμήσεις"></div></div>`;
-  }).join('');
-  const monthLabelsHtml = MONTH_SHORT_.map(l => `<span>${l}</span>`).join('');
-
-  // ---- Ποσοστό διαβασμένων ειδοποιήσεων ----
-  const readPill_ = (label, r) => {
-    const pct = r && r.total ? Math.round((r.read / r.total) * 100) : 0;
-    return `
-      <div class="stats-readrate-pill">
-        <span class="label">${label}</span>
-        <span class="fraction">${r ? r.read : 0}/${r ? r.total : 0}</span><span class="pct">(${pct}%)</span>
-        <div class="stats-progress-track"><div class="stats-progress-fill" style="width:${pct}%"></div></div>
-      </div>`;
-  };
-  const nrs = stats.notifReadStats || {};
+  const distLine = (obj) => Object.entries(obj).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${escapeHtml(k)} ${v}`).join(' · ');
 
   document.getElementById('adminStatsContent').innerHTML = `
+    <div class="stats-group">
+      <div class="stats-group-title">🗓️ Επόμενες εξορμήσεις</div>
+      ${upcomingHtml}
+    </div>
 
     <div class="stats-group">
-      <div class="stats-group-title">📊 Επισκόπηση</div>
+      <div class="stats-group-title">👥 Μέλη</div>
+      <div class="stats-table-wrap">
+        <table class="stats-table stats-members">
+          <thead><tr><th>Όνομα</th><th title="Περασμένες εξορμήσεις με «θα έρθω»">Συμμετοχές</th><th>Πρότεινε</th><th>Σχόλια</th><th>Επισκέψεις</th><th title="Μέσος χρόνος παραμονής ανά επίσκεψη">Μ.Ο. παραμονής</th><th>Συνολικός χρόνος</th><th title="Ενέργειες τελευταίων 90 ημερών">Ενέργειες</th><th>Συσκευές</th><th>Browser</th><th>Push</th><th>Τελ. επίσκεψη</th></tr></thead>
+          <tbody>${memberRows}</tbody>
+        </table>
+      </div>
+      <div class="stats-note">⚠️ = πάνω από 2 εβδομάδες χωρίς επίσκεψη. Ο χρόνος παραμονής μετράει μόνο όσο η σελίδα είναι ανοιχτή μπροστά στην οθόνη.</div>
+    </div>
+
+    <div class="stats-group">
+      <div class="stats-group-title">🖱️ Ενέργειες μελών (τελευταίες 90 μέρες)</div>
+      <div class="stats-section">${actionSummaryHtml}</div>
+      <div class="stats-section">
+        <div class="stats-activity-head">
+          <h4>Χρονολόγιο</h4>
+          <select id="statsActivityFilter"><option value="">Όλα τα μέλη</option>${memberOptions}</select>
+        </div>
+        <div id="statsActivityList" class="stats-activity-list"></div>
+      </div>
+    </div>
+
+    <div class="stats-group">
+      <div class="stats-group-title">🎒 Προτάσεις σε αναμονή (χωρίς ημερομηνία)</div>
+      ${stats.pending.length ? `
+      <div class="stats-table-wrap">
+        <table class="stats-table">
+          <thead><tr><th>Πρόταση</th><th>Από</th><th>Αναμονή</th><th>Θα έρθω</th><th>Το σκέφτομαι</th><th>Σχόλια</th></tr></thead>
+          <tbody>${pendingRows}</tbody>
+        </table>
+      </div>
+      <div class="stats-note">⏳ = περιμένει πάνω από 30 μέρες — ίσως θέλει απόφαση (ημερομηνία ή διαγραφή).</div>` : '<div class="stats-note">Καμία πρόταση σε αναμονή.</div>'}
+    </div>
+
+    <div class="stats-group">
+      <div class="stats-group-title">📊 Γενικά</div>
       <div class="stats-summary-row">
         <div class="stats-summary-pill"><span class="num">${stats.totalExpeditions}</span><span class="label">Εξορμήσεις</span></div>
+        <div class="stats-summary-pill"><span class="num">${stats.upcomingCount}</span><span class="label">Μελλοντικές</span></div>
+        <div class="stats-summary-pill"><span class="num">${stats.pastCount}</span><span class="label">Περασμένες</span></div>
         <div class="stats-summary-pill"><span class="num">${stats.totalComments}</span><span class="label">Σχόλια</span></div>
         <div class="stats-summary-pill"><span class="num">${stats.totalVisits}</span><span class="label">Επισκέψεις</span></div>
-        <div class="stats-summary-pill"><span class="num">${stats.people.length}</span><span class="label">Ενεργά μέλη</span></div>
-        <div class="stats-summary-pill"><span class="num">${stats.rosterActiveCount}/${stats.rosterSize}</span><span class="label">Κάλυψη ρόστερ</span></div>
-        <div class="stats-summary-pill"><span class="num">${stats.newArrivals7d}</span><span class="label">Νέες αφίξεις (7ημ.)</span></div>
+        <div class="stats-summary-pill"><span class="num">${formatDuration_(stats.avgDurationAll)}</span><span class="label">Μ.Ο. παραμονής</span></div>
       </div>
-    </div>
-
-    <div class="stats-group">
-      <div class="stats-group-title">👤 Άτομα</div>
-      <div class="stats-section">
-        <h4>Δραστηριότητα ανά άτομο</h4>
-        <div class="stats-table-wrap">
-          <table class="stats-table">
-            <thead><tr><th>Όνομα</th><th>Σχόλια</th><th>Πρότεινε</th><th>Θα έρθω</th><th>Το σκέφτομαι</th><th>Επισκέψεις</th><th>Συσκευές</th><th>Καλύτ. σερί</th><th>Τελ. επίσκεψη</th><th>Τελ. σχόλιο</th></tr></thead>
-            <tbody>${peopleRows || '<tr><td colspan="10">Καμία δραστηριότητα ακόμα.</td></tr>'}</tbody>
-          </table>
-        </div>
-      </div>
-      <div class="stats-section">
-        <h4>Ανενεργά μέλη (ρόστερ)</h4>
-        <div class="stats-tags-row">${inactiveTags}</div>
-      </div>
-    </div>
-
-    <div class="stats-group">
-      <div class="stats-group-title">📅 Επισκεψιμότητα</div>
       <div class="stats-section">
         <h4>Επισκέψεις τελευταίων 30 ημερών</h4>
         <div class="stats-bars">${visitsBarsHtml}</div>
         <div class="stats-bars-labels"><span>${firstDay}</span><span>${lastDay}</span></div>
-        <div class="stats-tags-row" style="margin-top:12px;">${deviceTags}</div>
       </div>
-      <div class="stats-section">
-        <h4>Επισκέψεις ανά ημέρα εβδομάδας (όλο το ιστορικό)</h4>
-        <div class="stats-weekday-bars">${weekdayBarsHtml}</div>
-        <div class="stats-weekday-labels">${weekdayLabelsHtml}</div>
-      </div>
+      <div class="stats-note">Διάρκεια: ${distLine(stats.durationCounts) || '—'}<br>Διαμονή: ${distLine(stats.stayCounts) || '—'}</div>
     </div>
 
-    <div class="stats-group">
-      <div class="stats-group-title">🏔️ Εξορμήσεις</div>
-      <div class="stats-grid-2col">
-        <div class="stats-section">
-          <h4>Δημοφιλέστερες εξορμήσεις</h4>
-          <div class="stats-table-wrap">
-            <table class="stats-table">
-              <thead><tr><th>Εξόρμηση</th><th>Θα έρθω</th><th>Το σκέφτομαι</th><th>Σχόλια</th></tr></thead>
-              <tbody>${expeditionRows || '<tr><td colspan="4">Καμία ακόμα.</td></tr>'}</tbody>
-            </table>
-          </div>
-        </div>
-        <div class="stats-section">
-          <h4>Γενικά νούμερα</h4>
-          <div class="stats-summary-row">
-            <div class="stats-summary-pill"><span class="num">${stats.upcomingCount}</span><span class="label">Μελλοντικές</span></div>
-            <div class="stats-summary-pill"><span class="num">${stats.pastCount}</span><span class="label">Περασμένες</span></div>
-            <div class="stats-summary-pill"><span class="num">${stats.noDateCount}</span><span class="label">Summit Squad 🎒</span></div>
-          </div>
-          <div class="stats-note">Μ.Ο. ${stats.avgCommentsPerExpedition.toFixed(1)} σχόλια και ${stats.avgInterestedPerExpedition.toFixed(1)} "θα έρθω" ανά εξόρμηση.</div>
-        </div>
-      </div>
-      <div class="stats-section">
-        <h4>Εποχικότητα (μήνας πεζοπορίας, όλα τα έτη)</h4>
-        <div class="stats-month-bars">${monthBarsHtml}</div>
-        <div class="stats-month-labels">${monthLabelsHtml}</div>
-      </div>
-      <div class="stats-grid-2col">
-        <div class="stats-section">
-          <h4>Κατανομή διάρκειας</h4>
-          <table class="stats-table"><tbody>${durationRows || '<tr><td>—</td></tr>'}</tbody></table>
-        </div>
-        <div class="stats-section">
-          <h4>Κατανομή διαμονής</h4>
-          <table class="stats-table"><tbody>${stayRows || '<tr><td>—</td></tr>'}</tbody></table>
-        </div>
-      </div>
-      <div class="stats-section">
-        <h4>Εξορμήσεις χωρίς απήχηση</h4>
-        <div class="stats-tags-row">${zeroExpTags}</div>
-      </div>
-    </div>
-
-    <div class="stats-group">
-      <div class="stats-group-title">🔔 Ειδοποιήσεις</div>
-      <div class="stats-section">
-        <h4>Ποσοστό διαβασμένων (τουλάχιστον από ένα άτομο)</h4>
-        <div class="stats-readrate-row">
-          ${readPill_('Εξορμήσεις', nrs.notif)}
-          ${readPill_('Summit Squad', nrs.ss)}
-          ${readPill_('Σχόλια', nrs.comment)}
-        </div>
-      </div>
-    </div>
-
-    <div class="stats-group">
-      <div class="stats-group-title">🕒 Πρόσφατη δραστηριότητα</div>
-      <div class="stats-section">
-        ${activityItems || '<div class="chat-empty">Καμία δραστηριότητα ακόμα.</div>'}
-      </div>
-    </div>
-
-    <div class="stats-note">Σημείωση: δεν εμφανίζονται διευθύνσεις IP. Οι επισκέψεις καταγράφονται μόνο αφού κάποιος δηλώσει όνομα στην εφαρμογή.</div>
+    <div class="stats-note">Δεν καταγράφονται διευθύνσεις IP ούτε τοποθεσία. Επισκέψεις και ενέργειες καταγράφονται μόνο αφού κάποιος δηλώσει όνομα.</div>
   `;
+
+  const renderActivity = () => {
+    const who = document.getElementById('statsActivityFilter').value;
+    const list = stats.events.filter(e => !who || (e.name || '').trim() === who).slice(0, 80);
+    document.getElementById('statsActivityList').innerHTML = list.length ? list.map(e => `
+      <div class="stats-activity-item">
+        <span class="who" style="color:${colorForName_((e.name || '').trim())}">${escapeHtml(e.name || '')}</span>
+        — ${escapeHtml(EVENT_LABELS_[e.event] || e.event)}${eventDetailText_(e) ? `: <span class="what">${escapeHtml(eventDetailText_(e))}</span>` : ''}
+        <span class="where">${formatNotifTime_(e.created_at)}</span>
+      </div>`).join('') : '<div class="stats-note">Καμία ενέργεια.</div>';
+  };
+  document.getElementById('statsActivityFilter').addEventListener('change', renderActivity);
+  renderActivity();
 }
 
 async function onDelete(id){
@@ -5605,6 +5821,65 @@ function initWelcomeOverlay_(){
   });
 }
 initWelcomeOverlay_();
+
+// ---- Καταγραφή ενεργειών από κλικ / φίλτρα (ένας κοινός listener) ----
+(function(){
+  const CLICK_EVENTS = {
+    tabGlossary: ['open_resource', { name: 'Ορολογία' }],
+    tabMountains: ['open_resource', { name: 'Βουνά' }],
+    tabKatafygia: ['open_resource', { name: 'Καταφύγια' }],
+    tabWeather: ['open_resource', { name: 'Καιρός' }],
+    tabHikeCalc: ['open_resource', { name: 'Υπολογιστής χρόνου' }],
+    themeToggle: ['theme', null],
+    viewListBtn: ['view', { view: 'Λίστα' }],
+    viewGridBtn: ['view', { view: 'Ημερολόγιο' }],
+    ssFilterBtn: ['ss_filter', null],
+    notifBell: ['open_notifications', { type: 'Εξορμήσεις' }],
+    ssNotifBell: ['open_notifications', { type: 'Summit Squad' }],
+    commentNotifBell: ['open_notifications', { type: 'Σχόλια' }],
+    pushEnableBtn: ['enable_push', null],
+    btnShowForm: ['open_add_form', null],
+    btnRefresh: ['refresh', null],
+    adminStatsLink: ['open_stats', null],
+  };
+  document.addEventListener('click', (e) => {
+    const t = e.target;
+    if (!t || !t.closest) return;
+    const idEl = t.closest('[id]');
+    if (idEl && CLICK_EVENTS[idEl.id]){
+      const [ev, detail] = CLICK_EVENTS[idEl.id];
+      track_(ev, detail);
+      return;
+    }
+    const titleLink = t.closest('.card .title a');
+    if (titleLink){
+      const card = titleLink.closest('.card');
+      const id = card && card.id ? card.id.replace(/^exp-/, '') : '';
+      track_('open_link', { id, title: expTitle_(id) });
+      return;
+    }
+    const mapLink = t.closest('a.katafygia-map-link');
+    if (mapLink){ track_('open_map', { name: mapLink.textContent.trim() }); }
+  }, true);
+
+  const FILTER_NAMES = { fMonth: 'Μήνας', fDuration: 'Διάρκεια', fStay: 'Διαμονή', fRemember: 'Θύμισέ μου' };
+  Object.keys(FILTER_NAMES).forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('change', () => {
+      const label = el.selectedOptions && el.selectedOptions[0] ? el.selectedOptions[0].textContent.trim() : el.value;
+      track_('filter', { filter: FILTER_NAMES[id], value: el.value ? label : '(όλα)' });
+    });
+  });
+  const search = document.getElementById('fSearch');
+  if (search){
+    let t = null;
+    search.addEventListener('input', () => {
+      clearTimeout(t);
+      t = setTimeout(() => { const q = search.value.trim(); if (q) track_('search', { q: q.slice(0, 60) }); }, 1500);
+    });
+  }
+})();
 
 // ---- "☰ Περισσότερα" -- hamburger menu στο κινητό για τα κουμπιά
 // Ορολογία/Βουνά/Καταφύγια/Καιρός/Υπολογιστής. Κάθε στοιχείο απλά
