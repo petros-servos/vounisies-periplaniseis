@@ -2656,8 +2656,11 @@ function maybeLogVisit_(){
 // Κάθε άνοιγμα της εφαρμογής = ένα "session". Καταγράφουμε browser/λειτουργικό,
 // τον χρόνο που η σελίδα ήταν ΟΡΑΤΗ (όχι όσο είναι στο background) και βασικές
 // ενέργειες (άνοιγμα chat, συμμετοχή, φίλτρα κλπ). Ποτέ IP ή τοποθεσία.
-const SESSION_ID_ = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
-  : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+function newSessionId_(){
+  return (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+    : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+}
+let SESSION_ID_ = newSessionId_();
 
 async function detectBrowser_(){
   const ua = navigator.userAgent || '';
@@ -2704,12 +2707,26 @@ function flushVisitDuration_(useKeepalive){
     sb.rpc('touch_visit', body).then(() => {}, () => {});
   }
 }
+// Στο κινητό (και στην εγκατεστημένη εφαρμογή) η σελίδα συχνά ΔΕΝ ξαναφορτώνει
+// όταν την ξανανοίγεις -- απλά συνεχίζει από το παρασκήνιο. Αν έχει περάσει
+// αρκετή ώρα από τότε που έκρυψες την εφαρμογή, το μετράμε ως νέα επίσκεψη.
+const NEW_VISIT_AFTER_MS_ = 30 * 60 * 1000;
+let HIDDEN_AT_ = null;
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden'){
+    HIDDEN_AT_ = Date.now();
     if (ACTIVE_SINCE_){ ACTIVE_MS_ += Date.now() - ACTIVE_SINCE_; ACTIVE_SINCE_ = null; }
     flushVisitDuration_(true);
-  } else if (!ACTIVE_SINCE_){
-    ACTIVE_SINCE_ = Date.now();
+  } else {
+    if (!ACTIVE_SINCE_) ACTIVE_SINCE_ = Date.now();
+    if (HIDDEN_AT_ && Date.now() - HIDDEN_AT_ > NEW_VISIT_AFTER_MS_ && VISIT_LOGGED_THIS_SESSION_){
+      SESSION_ID_ = newSessionId_();
+      ACTIVE_MS_ = 0;
+      ACTIVE_SINCE_ = Date.now();
+      VISIT_LOGGED_THIS_SESSION_ = false;
+      maybeLogVisit_();
+    }
+    HIDDEN_AT_ = null;
   }
 });
 window.addEventListener('pagehide', () => flushVisitDuration_(true));
