@@ -21,7 +21,7 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'Βουνίσιες Περιπλανήσεις';
   const options = {
     body: data.body || '',
-    icon: data.icon || 'icon-192.png',
+    icon: data.icon || 'notification-icon.png',
     badge: data.badge || 'badge-96.png',
     data: { url: data.url || './' },
     vibrate: [100, 50, 100],
