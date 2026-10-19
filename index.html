@@ -2755,7 +2755,8 @@ try {
   const dlParams = new URLSearchParams(location.search);
   const dlExp = dlParams.get('exp');
   const dlChat = dlParams.get('chat');
-  if (dlExp || dlChat) DEEPLINK_PARAMS_ = { exp: dlExp, chat: dlChat };
+  const dlComment = dlParams.get('comment');
+  if (dlExp || dlChat) DEEPLINK_PARAMS_ = { exp: dlExp, chat: dlChat, comment: dlComment };
 } catch(e){ /* URLSearchParams μη διαθέσιμο -- αγνοούμε το deep link */ }
 let DEEPLINK_NAME_READY_ = false;
 let DEEPLINK_ROWS_READY_ = false;
@@ -2773,7 +2774,7 @@ function scrollAndHighlightCard_(id){
 function tryHandleDeepLink_(){
   if (DEEPLINK_HANDLED_ || !DEEPLINK_PARAMS_ || !DEEPLINK_NAME_READY_ || !DEEPLINK_ROWS_READY_) return;
   DEEPLINK_HANDLED_ = true;
-  const { exp, chat } = DEEPLINK_PARAMS_;
+  const { exp, chat, comment } = DEEPLINK_PARAMS_;
   track_('open_from_push', { type: chat ? 'chat' : 'expedition', id: chat || exp, title: expTitle_(chat || exp) });
   // Καθαρίζουμε το ?exp=/?chat= από το URL ώστε ένα refresh ή ένα κοινό
   // link να μην ξανακάνει το ίδιο scroll/άνοιγμα, και να μη μένουν
@@ -2786,7 +2787,7 @@ function tryHandleDeepLink_(){
       showStatus('Η συζήτηση δεν βρέθηκε -- η εξόρμηση μπορεί να έχει διαγραφεί.');
       return;
     }
-    openChatModal(row.ID, row['Σχόλια'] || 'Εξόρμηση');
+    openChatModal(row.ID, row['Σχόλια'] || 'Εξόρμηση', comment || null);
     return;
   }
 
@@ -4068,7 +4069,7 @@ function colorForName_(name){
   return CHAT_NAME_PALETTE_[hash % CHAT_NAME_PALETTE_.length];
 }
 
-async function openChatModal(expeditionId, title){
+async function openChatModal(expeditionId, title, focusCommentId){
   if (!MY_NAME){
     const name = await askName();
     if (!name) return; // ακύρωσε -- δεν ανοίγει το chat χωρίς όνομα
@@ -4086,6 +4087,17 @@ async function openChatModal(expeditionId, title){
   FORCE_NEXT_CHAT_RENDER_ = true;
   document.getElementById('chatModalOverlay').classList.add('show');
   await loadChatMessages_();
+  // Αν ήρθαμε από ειδοποίηση συγκεκριμένου σχολίου, πήγαινε κατευθείαν εκεί
+  // (αντί για το τέλος της συζήτησης) και τόνισέ το.
+  if (focusCommentId){
+    const el = document.querySelector(`.chat-msg[data-comment-id="${CSS.escape(String(focusCommentId))}"]`);
+    if (el){
+      el.scrollIntoView({ block:'center' });
+      el.classList.remove('highlight-flash');
+      void el.offsetWidth;
+      el.classList.add('highlight-flash');
+    }
+  }
   // Ζωντανή ενημέρωση όσο το chat είναι ανοιχτό.
   if (CHAT_POLL_INTERVAL) clearInterval(CHAT_POLL_INTERVAL);
   CHAT_POLL_INTERVAL = setInterval(loadChatMessages_, 3000);
