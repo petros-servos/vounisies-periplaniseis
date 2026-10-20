@@ -204,17 +204,6 @@
     margin:0;
   }
 
-  .live-clock{
-    text-align:center;
-    font-family:Calibri, Carlito, sans-serif;
-    font-size: 18px;
-    white-space:nowrap; overflow:hidden;
-    letter-spacing:0.01em;
-    color: var(--text-dim);
-    background: var(--surface-2);
-    border-bottom:1px solid var(--border);
-    padding:8px 12px;
-  }
 
   .wrap{ max-width:960px; margin:0 auto; padding: 32px 24px 80px; }
 
@@ -1486,8 +1475,6 @@
   .admin-stats-content{ text-align:left; }
 
   @media (max-width: 620px){
-    /* Αφήνουμε χώρο δεξιά για τη σταθερή στήλη εικονιδίων (ειδοποιήσεις κλπ). */
-    .live-clock{ padding-right:58px; padding-left:8px; }
     .card-face{ grid-template-columns: 60px 1fr; }
     .card-actions{ grid-column: 1 / -1; flex-direction:row; flex-wrap:wrap; justify-content:flex-end; }
     .form-grid{ grid-template-columns: 1fr; }
@@ -1891,7 +1878,6 @@
 </div>
 
 
-<div id="liveClock" class="live-clock"></div>
 
 <div id="notifWrap" class="notif-wrap">
   <button id="themeToggle" class="theme-toggle" title="Εναλλαγή θέματος" type="button">🌙</button>
@@ -2715,38 +2701,6 @@ const MONTHS_EL = ['Ιαν','Φεβ','Μάρ','Απρ','Μάι','Ιούν','Ιο
 const DAYS_EL = ['Κυριακή','Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο'];
 const MONTHS_GEN_EL = ['Ιανουαρίου','Φεβρουαρίου','Μαρτίου','Απριλίου','Μαΐου','Ιουνίου','Ιουλίου','Αυγούστου','Σεπτεμβρίου','Οκτωβρίου','Νοεμβρίου','Δεκεμβρίου'];
 
-// Μία γραμμή πάντα: η γραμματοσειρά μικραίνει όσο χρειάζεται ώστε να χωράει
-// στο διαθέσιμο πλάτος (σε κινητό μένει χώρος δεξιά για τη στήλη εικονιδίων).
-function fitLiveClock_(el){
-  el.style.fontSize = '';
-  const max = parseFloat(getComputedStyle(el).fontSize) || 18;
-  let size = max;
-  el.style.fontSize = size + 'px';
-  const cs = getComputedStyle(el);
-  const avail = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-  const textWidth = () => { const r = document.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect().width; };
-  while (size > 10 && textWidth() > avail){ size -= 0.25; el.style.fontSize = size + 'px'; }
-}
-window.addEventListener('resize', () => { const el = document.getElementById('liveClock'); if (el && el.textContent) fitLiveClock_(el); });
-
-function updateLiveClock(){
-  const el = document.getElementById('liveClock');
-  if (!el) return;
-  const now = new Date();
-  const dayName = DAYS_EL[now.getDay()];
-  const date = now.getDate();
-  const month = MONTHS_GEN_EL[now.getMonth()];
-  const year = now.getFullYear();
-  let hours = now.getHours();
-  const minutes = String(now.getMinutes()).padStart(2, '0');
-  const ampm = hours >= 12 ? 'μμ' : 'πμ';
-  hours = hours % 12;
-  if (hours === 0) hours = 12;
-  el.textContent = `⛰️ ${dayName} ${date} ${month} ${year} - ώρα ${hours}:${minutes} ${ampm}`;
-  fitLiveClock_(el);
-}
-updateLiveClock();
-setInterval(updateLiveClock, 15000);
 let ROWS = [];
 const MY_NAME_KEY = 'vp_my_name_v1';
 let MY_NAME = '';
