@@ -1266,6 +1266,52 @@
   .interested.group-cost-line{ margin-top:4px; font-size:14.7px; color: var(--text-dim); font-weight:600; }
   .interested b{ color: var(--text); }
 
+
+  /* ---- Συμπτυγμένες / αναπτυγμένες κάρτες ---- */
+  .card-toggle{
+    position:absolute; top:12px; right:14px;
+    display:flex; align-items:center; gap:8px;
+    background:none; border:0; padding:6px; margin:-6px;
+    color: var(--text-dim); cursor:pointer; font:inherit;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .card-toggle .chev{
+    display:inline-block; font-size:18px; line-height:1;
+    transition: transform .22s ease; transform: rotate(180deg);
+  }
+  .card.collapsed .card-toggle .chev{ transform: rotate(0deg); }
+  .card-toggle .rsvp-mark{
+    display:none; font-size:13px; font-weight:700; line-height:1;
+    width:24px; height:24px; align-items:center; justify-content:center;
+    border-radius:50%; white-space:nowrap;
+  }
+  .card-toggle .rsvp-mark.in{ background: color-mix(in srgb, var(--moss) 18%, transparent); color: var(--moss); border:1px solid color-mix(in srgb, var(--moss) 40%, transparent); }
+  .card-toggle .rsvp-mark.maybe{ background: var(--accent-soft); color: var(--text); border:1px solid color-mix(in srgb, var(--accent) 45%, transparent); }
+  .card.collapsed .card-toggle{ top:50%; transform: translateY(-50%); }
+  .card.collapsed .card-toggle .rsvp-mark{ display:inline-flex; }
+  .card:not(.collapsed) .card-main{ padding-right:30px; }
+  .card.collapsed .card-face{
+    grid-template-columns: 54px 1fr;
+    gap:12px; padding:10px 14px; padding-right:72px; cursor:pointer;
+  }
+  .card.collapsed .date-block{ padding:6px 2px; }
+  .card.collapsed .date-block .day{ font-size:20px; }
+  .card.collapsed .date-block.range .day{ font-size:15px; }
+  .card.collapsed .date-block .mon{ font-size:10px; }
+  .card.collapsed .date-block.compact .day,
+  .card.collapsed .date-block.compact .mon{ font-size:10.5px; }
+  .card.collapsed .card-main .title{
+    font-size:17px; margin:0; line-height:1.25;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .card.collapsed .card-main .meta,
+  .card.collapsed .card-main .interested,
+  .card.collapsed .card-actions{ display:none; }
+  .card:not(.collapsed) .card-face.card-expand-anim{ animation: cardExpandIn .22s ease; }
+  @keyframes cardExpandIn{ from{ opacity:.6; } to{ opacity:1; } }
+  @media (max-width: 620px){
+    .card.collapsed .card-face{ grid-template-columns: 50px 1fr; padding-right:68px; }
+  }
   .card-actions{
     display:flex; flex-direction:column; gap:8px; align-items:flex-end;
   }
@@ -2763,6 +2809,7 @@ let DEEPLINK_ROWS_READY_ = false;
 let DEEPLINK_HANDLED_ = false;
 
 function scrollAndHighlightCard_(id){
+  expandCardById_(id);
   const card = document.getElementById('exp-' + id);
   if (!card) return false;
   (card.querySelector('.title') || card).scrollIntoView({ behavior:'smooth', block:'center' });
@@ -3605,6 +3652,23 @@ function wireCardEvents(container){
   container.querySelectorAll('[data-del]').forEach(btn => {
     btn.addEventListener('click', () => onDelete(btn.dataset.del));
   });
+  container.querySelectorAll('.card[data-card-id]').forEach(card => {
+    const face = card.querySelector('.card-face');
+    const toggleBtn = card.querySelector('.card-toggle');
+    if (!face || !toggleBtn) return; // π.χ. κάρτες στο παράθυρο ημέρας: πάντα ανεπτυγμένες
+    const toggle = () => {
+      const id = card.dataset.cardId;
+      const nowCollapsed = card.classList.toggle('collapsed');
+      toggleBtn.setAttribute('aria-expanded', String(!nowCollapsed));
+      if (nowCollapsed) EXPANDED_CARDS_.delete(id); else EXPANDED_CARDS_.add(id);
+    };
+    toggleBtn.addEventListener('click', (e) => { e.stopPropagation(); toggle(); });
+    face.addEventListener('click', (e) => {
+      if (e.target.closest('a, button, input, select, textarea, .rsvp-dropdown, .card-actions')) return;
+      try { if (String(window.getSelection && window.getSelection()).length) return; } catch(_){}
+      toggle();
+    });
+  });
   attachCardTapEffects(container);
 }
 
@@ -3747,7 +3811,7 @@ function renderDayModalContent(target){
   const dayModalList = document.getElementById('dayModalList');
   const rows = getCalendarFilteredRows();
   const events = eventsOnDate(rows, target);
-  dayModalList.innerHTML = events.map(r => cardHtml(r, today)).join('');
+  dayModalList.innerHTML = events.map(r => cardHtml(r, today, true)).join('');
   wireCardEvents(dayModalList);
   return events.length;
 }
@@ -3843,7 +3907,17 @@ function formatCost_(raw){
   return s.startsWith('€') ? s : ('€' + s);
 }
 
-function cardHtml(r, today){
+// Ποιες κάρτες είναι ανεπτυγμένες (κρατιέται όσο η σελίδα μένει ανοιχτή, ώστε
+// ένα refresh δεδομένων να μη μικραίνει ξανά τις κάρτες που άνοιξες).
+const EXPANDED_CARDS_ = new Set();
+function expandCardById_(id){
+  const key = String(id);
+  EXPANDED_CARDS_.add(key);
+  const card = document.getElementById('exp-' + key);
+  if (card) card.classList.remove('collapsed');
+}
+
+function cardHtml(r, today, forceExpanded){
   const dt = r['Ημερομηνία'] ? new Date(r['Ημερομηνία']) : null;
   if (dt) dt.setHours(0,0,0,0);
   const isPast = dt && dt < today;
@@ -3876,9 +3950,14 @@ function cardHtml(r, today){
   const cost = dt ? formatCost_(r['Κόστος Εξόρμησης']) : '';
   const groupCostLine = (groupName || cost) ? `<div class="interested group-cost-line">${groupName ? `👥 ${escapeHtml(groupName)}` : ''}${groupName && cost ? ' · ' : ''}${cost ? `💵 ${escapeHtml(cost)}` : ''}</div>` : '';
 
+  const expanded = !!forceExpanded || EXPANDED_CARDS_.has(String(r.ID));
+  const rsvpMark = iAmIn ? '<span class="rsvp-mark in" title="Θα έρθω">✓</span>'
+    : (iAmMaybe ? '<span class="rsvp-mark maybe" title="Το σκέφτομαι">💭</span>' : '');
+
   return `
-    <div class="card ${isPast ? 'past' : ''} ${urgentClass} ${noDateClass}" id="exp-${r.ID}">
+    <div class="card ${expanded ? '' : 'collapsed'} ${isPast ? 'past' : ''} ${urgentClass} ${noDateClass}" id="exp-${r.ID}" data-card-id="${escapeAttr(r.ID)}">
       <div class="card-face">
+        ${forceExpanded ? '' : `<button type="button" class="card-toggle" aria-label="Ανάπτυξη / σύμπτυξη" aria-expanded="${expanded}">${rsvpMark}<span class="chev">▾</span></button>`}
         <div class="date-block ${dateParts.small ? 'compact' : ''} ${dateParts.range ? 'range' : ''}">
           <div class="day">${dateParts.day}</div>
           <div class="mon">${dateParts.mon}</div>
@@ -4744,6 +4823,7 @@ function goToNotif(id){
     ssFilterBtn.classList.remove('active');
     refreshView();
   }
+  expandCardById_(id);
   const card = document.getElementById('exp-' + id);
   if (card){
     // Κεντράρουμε τον ΤΙΤΛΟ της κάρτας, όχι όλη την κάρτα -- σε πολυήμερες
@@ -4802,6 +4882,7 @@ function goToSSNotif(id){
   }
   if (currentView === 'grid') setView('list'); else refreshView();
   setTimeout(() => {
+    expandCardById_(id);
     const card = document.getElementById('exp-' + id);
     if (card){
       (card.querySelector('.title') || card).scrollIntoView({ behavior:'smooth', block:'center' });
