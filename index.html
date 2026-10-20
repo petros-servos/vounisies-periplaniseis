@@ -204,11 +204,11 @@
     margin:0;
   }
 
-  .live-clock .lc-br{ display:none; }
   .live-clock{
     text-align:center;
     font-family:Calibri, Carlito, sans-serif;
     font-size: 18px;
+    white-space:nowrap; overflow:hidden;
     letter-spacing:0.01em;
     color: var(--text-dim);
     background: var(--surface-2);
@@ -1487,9 +1487,7 @@
 
   @media (max-width: 620px){
     /* Αφήνουμε χώρο δεξιά για τη σταθερή στήλη εικονιδίων (ειδοποιήσεις κλπ). */
-    .live-clock{ font-size: clamp(15px, 4.4vw, 18px); padding-right:58px; padding-left:8px; line-height:1.35; }
-    .live-clock .lc-sep{ display:none; }
-    .live-clock .lc-br{ display:inline; }
+    .live-clock{ padding-right:58px; padding-left:8px; }
     .card-face{ grid-template-columns: 60px 1fr; }
     .card-actions{ grid-column: 1 / -1; flex-direction:row; flex-wrap:wrap; justify-content:flex-end; }
     .form-grid{ grid-template-columns: 1fr; }
@@ -2717,6 +2715,20 @@ const MONTHS_EL = ['Ιαν','Φεβ','Μάρ','Απρ','Μάι','Ιούν','Ιο
 const DAYS_EL = ['Κυριακή','Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο'];
 const MONTHS_GEN_EL = ['Ιανουαρίου','Φεβρουαρίου','Μαρτίου','Απριλίου','Μαΐου','Ιουνίου','Ιουλίου','Αυγούστου','Σεπτεμβρίου','Οκτωβρίου','Νοεμβρίου','Δεκεμβρίου'];
 
+// Μία γραμμή πάντα: η γραμματοσειρά μικραίνει όσο χρειάζεται ώστε να χωράει
+// στο διαθέσιμο πλάτος (σε κινητό μένει χώρος δεξιά για τη στήλη εικονιδίων).
+function fitLiveClock_(el){
+  el.style.fontSize = '';
+  const max = parseFloat(getComputedStyle(el).fontSize) || 18;
+  let size = max;
+  el.style.fontSize = size + 'px';
+  const cs = getComputedStyle(el);
+  const avail = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const textWidth = () => { const r = document.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect().width; };
+  while (size > 10 && textWidth() > avail){ size -= 0.25; el.style.fontSize = size + 'px'; }
+}
+window.addEventListener('resize', () => { const el = document.getElementById('liveClock'); if (el && el.textContent) fitLiveClock_(el); });
+
 function updateLiveClock(){
   const el = document.getElementById('liveClock');
   if (!el) return;
@@ -2730,9 +2742,8 @@ function updateLiveClock(){
   const ampm = hours >= 12 ? 'μμ' : 'πμ';
   hours = hours % 12;
   if (hours === 0) hours = 12;
-  // Σε κινητό σπάει σε δύο γραμμές (η παύλα κρύβεται) ώστε να χωράει μεγάλη γραμματοσειρά
-  // χωρίς να πέφτει κάτω από τη στήλη εικονιδίων πάνω-δεξιά.
-  el.innerHTML = `<span class="lc-date">⛰️ ${dayName} ${date} ${month} ${year}</span><span class="lc-sep"> - </span><br class="lc-br"><span class="lc-time">ώρα ${hours}:${minutes} ${ampm} 🏔️</span>`;
+  el.textContent = `⛰️ ${dayName} ${date} ${month} ${year} - ώρα ${hours}:${minutes} ${ampm}`;
+  fitLiveClock_(el);
 }
 updateLiveClock();
 setInterval(updateLiveClock, 15000);
