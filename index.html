@@ -1275,11 +1275,15 @@
     color: var(--text-dim); cursor:pointer; font:inherit;
     -webkit-tap-highlight-color: transparent;
   }
-  .card-toggle .chev{
-    display:inline-block; font-size:18px; line-height:1;
-    transition: transform .22s ease; transform: rotate(180deg);
+  .card-toggle .burger{
+    display:inline-flex; flex-direction:column; justify-content:space-between;
+    width:20px; height:15px; flex-shrink:0;
   }
-  .card.collapsed .card-toggle .chev{ transform: rotate(0deg); }
+  .card-toggle .burger i{
+    display:block; height:2.5px; border-radius:2px; background: currentColor;
+    transition: background .2s ease;
+  }
+  .card:not(.collapsed) .card-toggle{ color: var(--accent); }
   .card-toggle .rsvp-mark{
     display:none; font-size:13px; font-weight:700; line-height:1;
     width:24px; height:24px; align-items:center; justify-content:center;
@@ -1290,9 +1294,15 @@
   .card.collapsed .card-toggle{ top:50%; transform: translateY(-50%); }
   .card.collapsed .card-toggle .rsvp-mark{ display:inline-flex; }
   .card:not(.collapsed) .card-main{ padding-right:30px; }
+  /* Σε μεγάλη οθόνη οι επιλογές (Συμμετοχή κλπ) είναι στη δεξιά στήλη -- αφήνουμε
+     χώρο ώστε το κουμπί μενού να μη τις καλύπτει ποτέ. */
+  @media (min-width: 621px){
+    .card:not(.collapsed) .card-face{ padding-right:64px; }
+    .card:not(.collapsed) .card-main{ padding-right:0; }
+  }
   .card.collapsed .card-face{
     grid-template-columns: 54px 1fr;
-    gap:12px; padding:10px 14px; padding-right:72px; cursor:pointer;
+    gap:12px; padding:10px 14px; padding-right:86px; cursor:pointer;
   }
   .card.collapsed .date-block{ padding:6px 2px; }
   .card.collapsed .date-block .day{ font-size:20px; }
@@ -1310,7 +1320,7 @@
   .card:not(.collapsed) .card-face.card-expand-anim{ animation: cardExpandIn .22s ease; }
   @keyframes cardExpandIn{ from{ opacity:.6; } to{ opacity:1; } }
   @media (max-width: 620px){
-    .card.collapsed .card-face{ grid-template-columns: 50px 1fr; padding-right:68px; }
+    .card.collapsed .card-face{ grid-template-columns: 50px 1fr; padding-right:82px; }
   }
   .card-actions{
     display:flex; flex-direction:column; gap:8px; align-items:flex-end;
@@ -3957,7 +3967,7 @@ function cardHtml(r, today, forceExpanded){
   return `
     <div class="card ${expanded ? '' : 'collapsed'} ${isPast ? 'past' : ''} ${urgentClass} ${noDateClass}" id="exp-${r.ID}" data-card-id="${escapeAttr(r.ID)}">
       <div class="card-face">
-        ${forceExpanded ? '' : `<button type="button" class="card-toggle" aria-label="Ανάπτυξη / σύμπτυξη" aria-expanded="${expanded}">${rsvpMark}<span class="chev">▾</span></button>`}
+        ${forceExpanded ? '' : `<button type="button" class="card-toggle" aria-label="Ανάπτυξη / σύμπτυξη" aria-expanded="${expanded}">${rsvpMark}<span class="burger" aria-hidden="true"><i></i><i></i><i></i></span></button>`}
         <div class="date-block ${dateParts.small ? 'compact' : ''} ${dateParts.range ? 'range' : ''}">
           <div class="day">${dateParts.day}</div>
           <div class="mon">${dateParts.mon}</div>
