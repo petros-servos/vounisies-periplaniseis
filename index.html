@@ -204,11 +204,12 @@
     margin:0;
   }
 
+  .live-clock .lc-br{ display:none; }
   .live-clock{
     text-align:center;
     font-family:Calibri, Carlito, sans-serif;
-    font-size:14.1px;
-    letter-spacing:0.02em;
+    font-size: 18px;
+    letter-spacing:0.01em;
     color: var(--text-dim);
     background: var(--surface-2);
     border-bottom:1px solid var(--border);
@@ -1485,6 +1486,10 @@
   .admin-stats-content{ text-align:left; }
 
   @media (max-width: 620px){
+    /* Αφήνουμε χώρο δεξιά για τη σταθερή στήλη εικονιδίων (ειδοποιήσεις κλπ). */
+    .live-clock{ font-size: clamp(15px, 4.4vw, 18px); padding-right:58px; padding-left:8px; line-height:1.35; }
+    .live-clock .lc-sep{ display:none; }
+    .live-clock .lc-br{ display:inline; }
     .card-face{ grid-template-columns: 60px 1fr; }
     .card-actions{ grid-column: 1 / -1; flex-direction:row; flex-wrap:wrap; justify-content:flex-end; }
     .form-grid{ grid-template-columns: 1fr; }
@@ -2725,7 +2730,9 @@ function updateLiveClock(){
   const ampm = hours >= 12 ? 'μμ' : 'πμ';
   hours = hours % 12;
   if (hours === 0) hours = 12;
-  el.textContent = `${dayName} ${date} ${month} ${year} — ώρα ${hours}:${minutes} ${ampm}`;
+  // Σε κινητό σπάει σε δύο γραμμές (η παύλα κρύβεται) ώστε να χωράει μεγάλη γραμματοσειρά
+  // χωρίς να πέφτει κάτω από τη στήλη εικονιδίων πάνω-δεξιά.
+  el.innerHTML = `<span class="lc-date">⛰️ ${dayName} ${date} ${month} ${year}</span><span class="lc-sep"> - </span><br class="lc-br"><span class="lc-time">ώρα ${hours}:${minutes} ${ampm} 🏔️</span>`;
 }
 updateLiveClock();
 setInterval(updateLiveClock, 15000);
