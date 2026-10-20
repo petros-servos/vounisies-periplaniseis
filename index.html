@@ -3863,7 +3863,7 @@ function renderDayModalContent(target){
   const dayModalList = document.getElementById('dayModalList');
   const rows = getCalendarFilteredRows();
   const events = eventsOnDate(rows, target);
-  dayModalList.innerHTML = events.map(r => cardHtml(r, today, true)).join('');
+  dayModalList.innerHTML = events.map(r => cardHtml(r, today)).join('');
   wireCardEvents(dayModalList);
   return events.length;
 }
