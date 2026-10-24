@@ -2708,6 +2708,8 @@ try { MY_NAME = localStorage.getItem(MY_NAME_KEY) || ''; } catch(e){ /* localSto
 function setMyName_(name){
   MY_NAME = name;
   try { localStorage.setItem(MY_NAME_KEY, name); } catch(e){ /* αγνόησε -- η εφαρμογή δουλεύει κανονικά χωρίς persistence */ }
+  // Αν οι ειδοποιήσεις είναι ήδη ενεργές σε αυτή τη συσκευή, δέσε τη συνδρομή με το νέο όνομα.
+  try { syncPushSubscription_(); } catch(e){}
 }
 let VISIT_LOGGED_THIS_SESSION_ = false;
 // Καταγράφει την επίσκεψη μία φορά ανά άνοιγμα της εφαρμογής, μόνο αφού
@@ -5539,6 +5541,29 @@ async function enablePushNotifications_(){
     showStatus('Κάτι πήγε στραβά με τις ειδοποιήσεις. Δοκίμασε ξανά.');
   }
 }
+
+// Κρατά τη συνδρομή ειδοποιήσεων πάντα ενημερωμένη: αν η άδεια είναι ήδη δοσμένη,
+// ξαναγράφει τη συνδρομή της συσκευής με το τρέχον όνομα (και την ξαναδημιουργεί αν
+// ο browser την άλλαξε/έληξε). Έτσι δεν "χάνονται" μέλη από τη λίστα ειδοποιήσεων.
+async function syncPushSubscription_(){
+  try {
+    if (!MY_NAME || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const reg = (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.register('sw.js'));
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub){
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array_(VAPID_PUBLIC_KEY_),
+      });
+    }
+    const j = sub.toJSON();
+    await sb.from('push_subscriptions').upsert({
+      endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, name: MY_NAME,
+    }, { onConflict: 'endpoint' });
+  } catch(e){ /* σιωπηλά -- δεν πρέπει να επηρεάζει τη σελίδα */ }
+}
+setTimeout(syncPushSubscription_, 3000);
 
 (function(){
   const pushBtn = document.getElementById('pushEnableBtn');
